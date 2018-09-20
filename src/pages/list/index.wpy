@@ -1,0 +1,237 @@
+<template>
+	<!-- <view class="header">
+		<view class="search">
+			<navigator hover-class="none" url="../search/index">
+			    搜索您想要的商品
+			</navigator>
+		</view>
+	</view> -->
+	<view class="container">
+		<view class="head">
+			<text>{{searchPage.q?'‘'+searchPage.q+'’':''}}共{{searchPage.recordCount}}个商品</text>
+		</view>
+		<block wx:for="{{searchPage.recordList}}">
+			<view class="item" wx:if="{{item.index_img_url}}">
+				<navigator hover-class="none" url="../item/index?id={{item.item_id}}">
+					<view class="pic">
+						<image src="{{item.index_img_url}}"></image>
+						<image wx:if="{{item.video_url}}" class="video" src="/images/video.png"></image>
+					</view>
+						<view class="title">{{m1.textReplace(item.title)}}</view>
+						<view class="price">￥{{m1.priceFilter(((item.discount_price-0)+(profit[item.item_id]?profit[item.item_id]:profit['default'])))}}</view>
+						<view class="foot">{{item.up_time/1000}}</view>
+				</navigator>
+			</view>
+		</block>
+		<view class="footer" style="padding-bottom: {{isIphoneX?'0':'2'}}vh">
+			<text wx:if="{{searchPage.currentPage<=1}}">上一页</text>
+			<text wx:if="{{searchPage.currentPage>1}}" @tap="bindPageChange({{searchPage.currentPage-1}})">上一页</text>
+			<picker @change="bindPageChange({{searchPage.currentPage}})" value="{{searchPage.currentPage-1}}" range="{{pageArray}}">
+			  	<view>{{searchPage.currentPage}}/{{searchPage.pageCount}}</view>
+			</picker>
+			<text wx:if="{{searchPage.currentPage<searchPage.pageCount}}" @tap="bindPageChange({{searchPage.currentPage+1}})">下一页</text>
+			<text wx:if="{{searchPage.currentPage>=searchPage.pageCount}}">下一页</text>
+		</view>
+	</view>
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+	import mywxs from '../../wxs/mywxs.wxs'
+
+	export default class List extends wepy.page {
+		config = {
+			navigationBarTitleText: '商品列表'
+	  	}
+	  	data = {
+	  		pageArray: null,
+	  		searchPage: null,
+	  		profit: null,
+	  		params: null
+	  	}
+	  	wxs = {
+  	     	m1: mywxs
+  		}
+	  	methods = {
+	  		async bindPageChange (p, e) {
+	  			wepy.showLoading({title: '加载中'})
+	  			let params = this.params;
+	  			if (e.detail.value) {
+	  				params.currentPage = Number(e.detail.value)+1
+	  			} else {
+	  				params.currentPage = p
+	  			}
+  			    try {
+  					let response = await api.searchList(params)
+  					var pageArray = [];
+  					for (var i = 1; i <= response.search_page.pageCount; i++) {
+  						pageArray.push('第'+i+'页');
+  					}
+  					this.pageArray = pageArray
+  					wepy.pageScrollTo({ scrollTop: 0 })
+  					this.searchPage = response.search_page
+  					this.profit = this.$parent.globalData.profit
+  					this.params = params
+  					this.$apply()
+  					console.log(response)
+  				} catch (err) {
+  					console.log(err)
+  					wepy.showModal({
+  					  title: '提示',
+  					  content: '服务器错误，请联系管理员'
+  					})
+  				}
+  				wepy.hideLoading()
+	  			
+	  		}
+	  	}
+		async onLoad(e) {
+			wepy.showLoading({title: '加载中'})
+		    try {
+		    	if (e.q) {
+		    		var search = wepy.getStorageSync('search_histories') || [];
+		    		var index = search.indexOf(e.q)
+		    		if (index > -1) {
+		    			search.splice(index, 1);
+		    		}
+			    	if (search.length>=10) {
+			    		search.pop();
+			    	}
+			    	search.unshift(e.q);
+			    	wepy.setStorageSync('search_histories', search);
+		    	}
+				let params = e;
+				let response = await api.searchList(params)
+				var pageArray = [];
+				for (var i = 1; i <= response.search_page.pageCount; i++) {
+					pageArray.push('第'+i+'页');
+				}
+				this.pageArray = pageArray
+				this.searchPage = response.search_page
+				this.profit = this.$parent.globalData.profit
+				this.params = params
+				this.$apply()
+				// console.log(response)
+			} catch (err) {
+				console.log(err)
+				wepy.showModal({
+				  title: '提示',
+				  content: '服务器错误，请联系管理员'
+				})
+			}
+			wepy.hideLoading()
+		}
+	}
+</script>
+<style>
+	page{ 
+	  height: 100%;
+	  background: #f5f5f5;  
+	} 
+	.header {
+	  width: 100vw;
+	  height: 8vh;
+	  position: fixed;
+	  top: 0;
+	  z-index: 99;
+	  display: table;
+	  background: #fff;
+	  border-bottom: 1px solid #f5f5f5;
+	}
+	.header .search {
+	  width: 90vw;
+	  color: #939393;
+	  font-size: 14px;
+	  line-height: 4vh;
+	  margin: 2vh auto;
+	  text-align: center;
+	  background: #f5f5f5;
+	  border-radius: 15px;
+	}
+	.container {   
+	  width: 100vw;
+	  height: 92vh;
+	  padding: 0;
+	  /*margin-top: 8vh;*/
+	  display: block;
+	  color: #939393;
+	  position: relative;
+	} 
+	.container .head {
+	  line-height: 5vh;
+	  background: #fff;
+	  padding-left: 2vw;
+	  border-bottom: 1px solid #f5f5f5;
+	}
+	.container .item {
+	  width: 49vw;
+	  margin: 0.5vw;
+	  float: left;
+	  background: #fff;
+	}
+
+	.container .item .pic {
+	  width: 49vw;
+	  height: 49vw;
+	  position: relative
+	}
+	.container .item .pic image {
+	  width: 100%;
+	  height: 49vw;
+	}
+	.container .item .pic .video {
+	  width: 6vw;
+	  height: 6vw;
+	  position: absolute;
+	  top: 2vw;
+	  right: 2vw;
+	}
+	.container .item .title {
+	  min-height: 43px;
+	  padding: 1vw;
+	  font-size: 16px;
+	  color: #000;
+	  text-overflow: -o-ellipsis-lastline;
+	  overflow: hidden;
+	  text-overflow: ellipsis;
+	  display: -webkit-box;
+	  -webkit-line-clamp: 2;
+	  -webkit-box-orient: vertical;
+	}
+	.container .item .price {
+	  font-weight: bold;
+	  color: #ef3664;
+	}
+	.container .item .foot {
+	  border-top: 1px solid #f5f5f5;
+	  padding: 0 1vw;
+	  line-height: 2;
+	  font-size: 14px;
+	}
+
+	.footer {
+	  width: 100vw;
+	  color: #000;
+	  display: flex;
+	  font-size: 16px;
+	  background: #fff;
+	  border-top: 1px solid #f5f5f5;
+	}
+	.footer text {
+	  width: 24vw;
+	  margin: 3vw;
+	  line-height: 2;
+	  text-align: center;
+	  border-radius: 5px;
+	  border: 1px solid #888888;
+	}
+	.footer picker {
+	  width: 40vw;
+	  margin: 3vw 0;
+	  line-height: 2;
+	  text-align: center;
+	  border-radius: 5px;
+	  border: 1px solid #888888;
+	}
+</style>
+

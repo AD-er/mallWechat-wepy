@@ -1,0 +1,19 @@
+<style>
+	
+</style>
+<template>
+	
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+
+	export default class Account extends wepy.page {
+		config = {
+			navigationBarTitleText: '账户设置'
+	  	}
+		onLoad() {
+			
+		}
+	}
+</script>

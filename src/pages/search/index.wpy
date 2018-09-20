@@ -1,0 +1,113 @@
+<template>
+	<view class="header">
+		<view class="input">
+			<input type="text" placeholder="搜索您想要的商品" @input="bindSearchInput"></input>
+		</view>
+		<view class="search" @tap="bindSearch">搜索</view>
+	</view>
+	<view class="container">
+		<view class="history">
+			<view class="title">历史记录</view>
+			<view class="clear" @tap="bindClearSearch">清除</view>
+		</view>
+		<view class="histories">
+			<navigator wx:for="{{histories}}" hover-class="none" url="/pages/list/index?q={{item}}">{{item}}</navigator>
+		</view>
+	</view>
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+
+	export default class Search extends wepy.page {
+		config = {
+			navigationBarTitleText: '搜索'
+	  	}
+	  	data = {
+	  		search: null,
+	  		histories: null
+	  	}
+	  	methods = {
+	  		bindSearchInput (e) {
+	  			this.search = e.detail.value
+	  		},
+	  		bindSearch () {
+	  			if (!this.search) {
+	  				return false
+	  			}
+	  			wx.navigateTo({
+  					url: '/pages/list/index?q='+this.search
+  				})
+	  		},
+	  		async bindClearSearch () {
+	  			let tips = await wepy.showModal({
+	  				title: '提示',
+	  				content: '确定要清除搜索历史吗？'
+	  			})
+	  			if (tips.confirm) {
+	  				wepy.removeStorageSync('search_histories');
+	  				this.histories = null;
+	  				this.$apply();
+	  			}
+	  		}
+	  	}
+		onShow() {
+			this.histories = wepy.getStorageSync('search_histories');			
+		}
+	}
+</script>
+<style>
+	.header {
+		width: 100vw;
+		height: 8vh;
+		display: flex;
+		background: #fff;
+		border-bottom: 1px solid #f5f5f5;
+	}
+	.header .input {
+		width: 74vw;
+		color: #939393;
+		font-size: 14px;
+		line-height: 4vh;
+		margin: 2vh 3vw;
+		background: #f5f5f5;
+		border-radius: 15px;
+	}
+	.header .search {
+		width: 17vw;
+		color: #fff;
+		margin: 2vh 3vw 2vh 0;
+		text-align: center;
+		background: #fb658a;
+		border: 1px solid #fb658a;
+		border-radius: 3px;
+	}
+	.container .history {
+		width: 100vw;
+		display: flex;
+		font-size: 16px;
+		line-height: 4vh;
+	}
+	.container .history .title {
+		width: 74vw;
+		margin: 0 3vw;
+	}
+	.container .history .clear {
+		width: 17vw;
+		color: #fb658a;
+		margin-right: 3vw;
+		text-align: right;
+	}
+	.container .histories {
+		width: 94vw;
+		margin: 0 3vw;
+		font-size: 14px;
+	}
+	.container .histories navigator {
+		display: inline-block;
+		margin: 4px;
+		padding: 2px 10px;
+		border-radius: 3px;
+		background: #f5f5f5;
+	}
+</style>

@@ -1,0 +1,168 @@
+<template>
+	<view class="container">
+		<view class="items">
+			<view class="name">订单状态：</view>
+			<view class="cont" wx:if="{{order.closed}}" style="color: #f75d83">已关闭</view>
+			<block wx:if="{{!order.closed}}">
+			<view class="cont" wx:if="{{!order.paid_at}}" style="color: #f75d83">待付款</view>
+			<view class="cont" wx:if="{{order.paid_at&&order.refund_status==='pending'}}">{{m1.shipStatus(order.ship_status)}}</view>
+			</block>
+		</view>
+		<view class="items">
+			<view class="name">订单编号：</view>
+			<view class="cont">{{order.no}}</view>
+		</view>
+		<view class="items">
+			<view class="name">下单时间：</view>
+			<view class="cont">{{order.created_at}}</view>
+		</view>
+	</view>
+	<view class="container">
+		<view class="items">
+			<view class="name">收货人：</view>
+			<view class="cont">{{order.address.name}} {{order.address.phone}}</view>
+		</view>
+		<view class="items">
+			<view class="name">收货地址：</view>
+			<view class="cont">{{order.address.address}}</view>
+		</view>
+		<view class="items">
+			<view class="name">配送方式：</view>
+			<view class="cont">未发货</view>
+		</view>
+	</view>
+	<view class="container">
+		<navigator hover-class="none" url="../item/index?id={{item.item_id}}" wx:for="{{order.orderItem.data}}">
+			<view class="item-img">
+				<image src="{{item.index_img_url}}"></image>
+			</view>
+			<view class="item-desc">
+				<veiw class="title">{{item.title}}</veiw>
+				<veiw class="style">{{item.style.color}}-{{item.style.size}}</veiw>
+				<veiw class="price"><text>{{item.price}}</text> x{{item.amount}}</veiw>
+			</view>
+		</navigator>
+	</view>
+	<view class="footer">
+		<view class="total">
+			<view class="attrs">
+				<view>商品金额</view>
+				<view style="color: #ef3664;text-align: right">￥{{order.total_amount}}</view>
+			</view>
+			<view class="attrs">
+				<view>优惠金额</view>
+				<view style="color: #ef3664;text-align: right">-￥0.00</view>
+			</view>
+			<view class="attrs">
+				<view>配送运费</view>
+				<view style="color: #ef3664;text-align: right">+￥{{order.total_amount}}</view>
+			</view>
+			<view style="margin-top: 1vh; text-align: right;line-height: 1.5;font-size: 18px;border-top: 1px solid #f5f5f5">
+				实付金额：<text style="color: #ef3664">￥{{order.total_amount}}</text>
+			</view>
+		</view>
+		<view class="btn" @tap="bindPay">微信支付</view>
+	</view>
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+	import mywxs from '../../wxs/mywxs.wxs'
+
+	export default class Show extends wepy.page {
+		config = {
+			navigationBarTitleText: '订单详情'
+	  	}
+	  	data = {
+	  		order: null
+	  	}
+	  	wxs = {
+  	     	m1: mywxs
+  		}
+		async onLoad(e) {
+			let response = await api.authRequest('orders/'+e.id+'?include=orderItem')
+		    if (response.statusCode === 201) {
+		    	this.order = response.data.data
+		    	console.log(response)
+            }
+            this.$apply()
+		}
+	}
+</script>
+<style>
+	page {
+		background: #f5f5f5;
+	}
+	.container {
+		padding: 1vh 0;
+		background: #fff;
+		margin-bottom: 2vh;
+		border-top: 1px solid #f5f5f5;
+	}
+	.container .items {
+		width: 96vw;
+		display: flex;
+		margin: 0 auto;
+		line-height: 1.5;
+	}
+	.container .items .name {
+		width: 29%;
+		color: #666;
+	}
+	.container .items .cont {
+		width: 71%;
+	}
+	navigator {
+		width: 96vw;
+		margin: 1vh auto 0;
+		display: flex;
+	}
+	navigator .item-img {
+		width: 25vw;
+		height: 25vw;
+		margin-right: 2vw;
+	}
+	navigator .item-img image {
+		width: 100%;
+		height: 100%;
+	}
+	navigator .item-desc {
+		width: 69vw;
+		display: flex;
+		flex-direction: column;
+	}
+	navigator .item-desc .style {
+		font-size: 32rpx;
+		color: #666
+	}
+	navigator .item-desc .price {
+		font-size: 32rpx;
+		color: #666
+	}
+	navigator .item-desc .price text {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #f75d83
+	}
+	.footer {
+	  padding: 1vh 2vh;
+	  margin-top: 2vh;
+	  background: #fff;
+	}
+	.footer .total .attrs {
+	  display: flex;
+	  line-height: 1.5;
+	}
+	.footer .total .attrs view {
+	  width: 50%
+	}
+	.footer .btn {
+	  color: #fff;
+	  margin: 2vh 0;
+	  line-height: 2.5;
+	  border-radius: 5px;
+	  text-align: center;
+	  background: #1aad19;
+	}
+
+</style>

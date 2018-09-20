@@ -1,0 +1,55 @@
+<template>
+	<!-- <view class="item" wx:for="{{items}}">
+		<view class="pic"><image src="{{item.image}}"></image></view>
+		<view class="desc">
+			<navigator class="title" hover-class="none" url="../item/index?id={{item.item_id}}">{{item.title}}</navigator>
+		</view>
+	</view> -->
+	<navigator class="item" hover-class="none" wx:for="{{items}}" url="../item/index?id={{item.item_id}}">
+		<image src="{{item.image}}"></image>
+		<text>{{item.title}}</text>		
+	</navigator>
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+
+	export default class Collect extends wepy.page {
+		config = {
+			navigationBarTitleText: '我的收藏'
+	  	}
+	  	data = {
+	  		items: null
+	  	}
+		async onLoad() {
+			let response = await api.authRequest('collects')
+			console.log(response)
+		    if (response.statusCode === 201) {
+		    	this.items = response.data.data
+                this.$apply()
+            }
+		}
+	}
+</script>
+<style>
+	.item {
+		display: flex;
+		padding: 1vh;
+		border-top: 1px solid #f5f5f5
+	}
+	.item image {
+		width: 23vw;
+		height: 23vw;
+		margin-right: 2vw;
+	}
+	.item text {
+		width: 75vw;
+		text-overflow: -o-ellipsis-lastline;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		-webkit-box-orient: vertical;
+	}
+</style>
+

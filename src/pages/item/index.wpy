@@ -1,0 +1,644 @@
+<template>
+	<import src="../../wxParse/wxParse.wxml"/>
+	<view class="header">
+	  <view class="btn">
+	    <view class="{{toView=='item'?'active':''}}" @tap="bindSkip('item')">商品</view>
+	    <view class="{{toView=='detail'?'active':''}}" @tap="bindSkip('detail')">详情</view>
+	  </view>
+	</view>
+	<view class="container" style="height: {{isIphoneX?'86':'87'}}vh">
+	  <scroll-view scroll-y="true" style="height: 100%" scroll-into-view="{{toView}}" @scroll="bindScroll">
+	    <view class="item" id="item">
+	      <view class="pic-wrapper">
+	        <swiper indicator-dots indicator-color="{{indicator}}" current="{{current}}" indicator-active-color="{{activeIndicator}}" class="bn-swiper" @change="bindPicChage" duration="300">
+	            <swiper-item wx:if="{{itemInfo.video_url}}">
+	                <view wx:if="{{isPlay}}" class="video-wrapper">   
+	                	<video src="{{itemInfo.video_url}}" class="video" controls id="myVideo"></video> 
+	                </view>  
+	                <view wx:else class="video-host-wrapper" @tap.stop="bindPlay">  
+	                	<image src="{{itemInfo.imgs[0]}}" mode='aspectFill'/> 
+	                	<image src="/images/play.png" class="icon"></image>
+	                </view>
+	            </swiper-item>
+	            <swiper-item wx:for="{{itemInfo.imgs}}">
+	            	<image src="{{item}}" mode='aspectFill' catchtap='preview' data-url="{{item}}"/>
+	            </swiper-item>
+	        </swiper>
+	      </view>
+	      <view class="desc">
+	        <view class="title">{{itemInfo.title}}</view>
+	        <view class="foot">
+		        <view class="price" wx:for="{{itemInfo.skumap}}" wx:for-item="sku" wx:if="{{sku.id == sku_id}}">￥{{m1.priceFilter(sku.discount_price-0+profit)}}</view>
+		        <view class="price" wx:if="{{!sku_id}}">￥{{m1.priceFilter((itemInfo.discount_price-0)+profit)}}</view>
+	        	<view class="update">{{up_time[0]}}</view>
+	        </view>
+	      </view>
+	    </view>
+
+	    <view class="pick" id="pick">
+	      <view class="selected" wx:if="{{selected_color_index != null && selected_size_index != null}}">
+	        已选择 <text style="color: #000">{{itemInfo.color[selected_color_index]}}/{{itemInfo.size[selected_size_index]}} - {{amount}}件</text> 
+	      </view>
+	      <view class="selected" style="color: #ef3664" wx:else>请选择颜色/尺寸</view>
+	      <view class="select">
+	        <view class="name">颜色</view>
+	        <view class="attrs">
+	          <block wx:for="{{itemInfo.color}}">
+	            <view class="attr {{selected_color_index==index?'active':''}}" wx:if="{{itemInfo.color_able[index]}}" @tap="selectColor({{index}})">{{item}}</view>
+	            <view class="attr disabled" wx:if="{{!itemInfo.color_able[index]}}">{{item}}</view>
+	          </block>
+	        </view>
+	      </view>
+	      <view class="select">
+	        <view class="name">尺寸</view>
+	        <view class="attrs">
+	          <block wx:for="{{itemInfo.size}}">
+	            <view class="attr {{selected_size_index==index?'active':''}}" wx:if="{{itemInfo.size_able[index]}}" @tap="selectSize({{index}})">{{item}}</view>
+	            <view class="attr disabled" wx:if="{{!itemInfo.size_able[index]}}">{{item}}</view>
+	          </block>
+	        </view>
+	      </view>
+	      <view class="select">
+	        <view class="name">数量</view>
+	        <view class="attrs">
+	          <view class="stepper">
+	            <text class="{{amount==1?'':'normal'}}" @tap="{{amount==1?'':'bindMinus'}}">-</text>
+	            <input type="number" maxlength="2" @change="bindManual" value="{{amount}}"/>
+	            <text class="{{amount<9?'normal':''}}" @tap="{{amount<9?'bindPlus':''}}">+</text>
+	          </view>
+	        </view>
+	      </view>
+	    </view>
+
+	    <view class="detail" id="detail">
+	      <view class="swiper-tab">
+	        <view class="swiper-tab-item {{currentTab==0?'active':''}}" @tap="bindTab(0)">图文介绍</view>
+	        <view class="swiper-tab-item {{currentTab==1?'active':''}}" @tap="bindTab(1)">规格参数</view>
+	      </view>  
+	      <view class="swiper-content"> 
+	        <view class="swiper-content-item {{currentTab==0?'':'hidden'}}">
+	        	<template is="wxParse" data="{{wxParseData:desc.nodes}}" />
+	        </view>
+	        <view class="swiper-content-item {{currentTab==1?'':'hidden'}}">
+	          <view class="tab">
+	            <view class="tr" wx:for="{{itemInfo.attrs}}">
+	              <view class="name">{{item[0]}}</view>
+	              <view class="attr">{{item[1]}}</view>
+	            </view>
+	          </view>
+	        </view>
+	      </view>  
+	    </view> 
+	  </scroll-view>
+	</view>
+	<view class="footer">
+	  <view class="share"><image src='/images/share_selected.png' class='icon'></image>分享</view>
+	  <view class="collect" @tap="bindCollect"><image src='/images/collect_selected.png' class='icon'></image>收藏</view>
+	  <view class="cart" @tap="bindMyCart"><image src='/images/cart_selected.png' class='icon'></image>购物车</view>
+	  <view class="add-cart" wx:if="{{!lackStatusText.imposed}}" @tap="bindAddCart">加入购物车</view>
+	  <view class="buy" wx:if="{{!lackStatusText.imposed}}" @tap="toBuy">立即购买</view>
+	  <view class="disabled" wx:if="{{lackStatusText.imposed}}">{{lackStatusText.title}}</view>
+	</view>
+
+	<toast />
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+	import Toast from 'wepy-com-toast'
+	import WxParse from '@/wxParse/wxParse'
+	import mywxs from '../../wxs/mywxs.wxs'
+
+	export default class Item extends wepy.page {
+		config = {
+			navigationBarTitleText: '商品详情'
+	  	}
+	  	components = {
+	  	  toast: Toast
+	  	}
+	  	data = {
+	  	  profit: null,
+	  	  currentTab: 0,
+	  	  isPlay: false,
+	  	  toView: 'item',
+	  	  amount: 1,
+	  	  sku_id: null,
+	  	  itemInfo: null,
+	  	  lackStatusText: null,
+	  	  selected_size_index: null,
+	  	  selected_color_index: null
+	  	}
+	  	wxs = {
+  	     	m1: mywxs
+  		}
+	  	methods = {
+	  		bindPlay: function (e) {
+	  			this.videoContext.play()
+	  			this.isPlay = true
+	  		},
+	  		bindPicChage: function (e) {
+	  			this.videoContext.pause()
+	  			this.isPlay = false
+	  		},
+	  		bindScroll: function (e) {
+	  			this.videoContext.pause()
+	  			this.isPlay = false
+	  		},
+	  		bindSkip (s) {
+	  			this.toView = s
+	  		},
+	  		bindTab (i) {
+	  			this.currentTab = i
+	  		},
+	  		selectColor (i) {
+	  			if (this.selected_color_index === i) {
+	  				var size = this.itemInfo.size
+	  				this.selected_color_index = null
+	  				this.itemInfo.size_able = Array(size.length).fill(true)
+	  			} else{
+	  				this.selected_color_index = i
+	  				var color_id = this.itemInfo.color_id[i]
+	  				var size_id = this.itemInfo.size_id
+	  				var skumap = this.itemInfo.skumap
+	  				var size_able = []
+	  				for (var s in size_id) {
+	  					var size_color = ';'+size_id[s]+';'+color_id+';';
+	  					var color_size = ';'+color_id+';'+size_id[s]+';';
+	  					var able = false;
+	  					for (var i in skumap) {
+	  						if (skumap[i].skuid === size_color || skumap[i].skuid === color_size) {
+	  							able = true;
+	  						}
+	  					}
+	  					size_able.push(able)
+	  				}
+	  				this.itemInfo.size_able = size_able
+	  			}
+	  			this.skumapChage()
+	  		},
+	  		selectSize (i) {
+	  			if (this.selected_size_index === i) {
+	  				var color = this.itemInfo.color
+	  				this.selected_size_index = null
+	  				this.itemInfo.color_able = Array(color.length).fill(true)
+	  			} else {
+	  				this.selected_size_index = i
+	  				var size_id = this.itemInfo.size_id[i]
+	  				var color_id = this.itemInfo.color_id
+	  				var skumap = this.itemInfo.skumap
+	  				var color_able = []
+	  				for (var c in color_id) {
+	  					var color_size = ';'+color_id[c]+';'+size_id+';';
+	  					var size_color = ';'+size_id+';'+color_id[c]+';';
+	  					var able = false;
+	  					for (var i in skumap) {
+	  						if (skumap[i].skuid === size_color || skumap[i].skuid === color_size) {
+	  							able = true;
+	  						}
+	  					}
+	  					color_able.push(able)
+	  				}
+	  				this.itemInfo.color_able = color_able
+	  			}
+	  			this.skumapChage()
+	  		},
+	  		bindManual (e) {
+	  			this.amount = e.detail.value <= 0 ? 1 : e.detail.value
+	  		},
+	  		bindMinus (e) {
+	  			this.amount = this.amount > 1 ? Number(this.amount) - 1 : 1
+	  		},
+	  		bindPlus (e) {
+	  			this.amount = this.amount < 9 ? Number(this.amount) + 1 : 9
+	  		},
+	  		async bindCollect (e) {
+	  			let isLogin = await this.$parent.checkLogin()
+	  			if (!isLogin) {
+	  				let tips = await wepy.showModal({
+						title: '提示',
+						confirmText: '去登录',
+						content: '还没登录，请前往登录'
+					})
+					if (tips.confirm) {
+						wx.navigateTo({
+							url: '../login/index'
+						})
+					}
+					return false
+	  			}
+				let params = {
+					item_id: this.itemInfo.id,
+					title: this.itemInfo.title,
+					image: this.itemInfo.index_img_url
+				}
+				let response = await api.authRequest({
+					url: 'collects',
+					method: 'POST',
+			        data: params
+				})
+	  		},
+	  		bindMyCart (e) {
+	  			wepy.switchTab({
+	  			  url: '/pages/cart/index'
+	  			})
+	  		},
+	  		async bindAddCart (e) {
+	  			if (this.selected_size_index != null && this.selected_color_index != null) {
+	  				let isLogin = await this.$parent.checkLogin()
+	  				if (isLogin) {
+						let params = {
+							item_id: this.itemInfo.id,
+				  			sku_id: this.sku_id,
+				  			size: this.itemInfo.size[this.selected_size_index],
+				  			color: this.itemInfo.color[this.selected_color_index],
+				  			amount: this.amount
+						}
+						let response = await api.authRequest({
+							url: 'carts',
+							method: 'POST',
+					        data: params
+						})
+					} else {
+						var carts = wepy.getStorageSync('carts') || [];
+						if (carts.length>=8) {
+							let tips = await wepy.showModal({
+								title: '提示',
+								confirmText: '去登录',
+								content: '购物车已满，请登录结算清空再添加'
+							})
+							if (tips.confirm) {
+								wx.navigateTo({
+									url: '../login/index'
+								})
+							}
+							return false
+						}
+			  			var item = {
+			  				item_id: this.itemInfo.id,
+			  				sku_id: this.sku_id,
+			  				profit: this.profit,
+			  				amount: this.amount,
+			  				size: this.itemInfo.size[this.selected_size_index],
+			  				color: this.itemInfo.color[this.selected_color_index]
+			  			};
+			  			if (carts.length) {
+			  				for (var i in carts) {
+			  					if (carts[i].item_id == item.item_id && carts[i].sku_id == item.sku_id) {
+			  						carts[i].amount = Number(carts[i].amount) + item.amount;
+		  							wepy.setStorageSync('carts', carts)
+		  							this.$invoke('toast', 'show', {
+					  				  	title: '成功加入购物车',
+					  				  	titleClassName: '.toast_font',
+					  				  	img: '/images/cart_selected.png'
+					  				})
+					  				return false
+			  					}
+			  				}
+			  			}
+		  				carts.push(item);
+		  				wepy.setStorageSync('carts', carts)
+		  				this.$invoke('toast', 'show', {
+		  				  	title: '成功加入购物车',
+		  				  	titleClassName: '.toast_font',
+		  				  	img: '/images/cart_selected.png'
+		  				})
+					}
+	  			} else {
+			        this.$invoke('toast', 'show', {
+					  	title: '请选择颜色／尺寸',
+					  	titleClassName: '.toast_font',
+					  	img: '/images/colse.png'
+					})
+					this.toView = 'pick'
+	  			}
+	  		},
+	  		async toBuy (e) {
+      			if (this.selected_size_index != null && this.selected_color_index != null) {
+      				let isLogin = await this.$parent.checkLogin()
+      				if (!isLogin) {
+      					let tips = await wepy.showModal({
+							title: '提示',
+							confirmText: '去登录',
+							content: '还没登录，请前往登录'
+						})
+						if (tips.confirm) {
+							wx.navigateTo({
+								url: '../login/index'
+							})
+						}
+						return false
+      				}
+      				var checkOut = [];
+      				checkOut.push({
+      					item_id: this.itemInfo.id,
+      					sku_id: this.sku_id,
+      					profit: this.profit,
+      					amount: this.amount,
+      					size: this.itemInfo.size[this.selected_size_index],
+      					color: this.itemInfo.color[this.selected_color_index]
+      				});
+      				wepy.setStorageSync('check_out', checkOut);
+      				wx.navigateTo({
+      					url: '../checkOut/index'
+      				})
+      			} else {
+    		        this.$invoke('toast', 'show', {
+    				  	title: '请选择颜色／尺寸',
+    				  	titleClassName: '.toast_font',
+    				  	img: '/images/colse.png'
+    				})
+    				this.toView = 'pick'
+      			}
+	  		}
+
+	  	}
+	  	skumapChage () {
+	  		if (this.selected_color_index != null && this.selected_color_index != null) {
+		  		var itemInfo = this.itemInfo;
+		  		var size_color = ';' + itemInfo.size_id[this.selected_size_index] + ';' + itemInfo.color_id[this.selected_color_index] + ';';
+		  		var color_size = ';' + itemInfo.color_id[this.selected_color_index] + ';' + itemInfo.size_id[this.selected_size_index] + ';';
+		  		for (var i = 0; i < itemInfo.skumap.length; i++) {
+		  			if (size_color == itemInfo.skumap[i].skuid || color_size == itemInfo.skumap[i].skuid) {
+		  			    this.sku_id = itemInfo.skumap[i].id
+		  			    this.discount_price = itemInfo.skumap[i].discount_price
+		  			    this.lackStatusText = api.lackStatusText(1, itemInfo.skumap[i].lack_reason, "", "", itemInfo.skumap[i].is_lack)
+		  			    return
+		  			}
+		  		}
+		  	}
+	  	}
+		async onLoad(p) {
+			wepy.showLoading({title: '加载中'})
+			this.videoContext = wepy.createVideoContext('myVideo')
+			this.itemInfo = await api.getItemInfo(p.id)
+			this.profit = this.$parent.globalData.profit[p.id] ? this.$parent.globalData.profit[p.id] : this.$parent.globalData.profit['default']
+			this.$apply()
+			WxParse.wxParse('desc', 'html', this.itemInfo.desc, this, 0)
+			wepy.hideLoading()
+		}
+	}
+</script>
+<style>
+	@import "../../wxParse/wxParse.wxss";
+	page{ 
+	  height: 100%;
+	  background: #f5f5f5;  
+	} 
+	.header {
+	  background: #fff;
+	  border-top: 1px solid #fff;
+	  border-bottom: 1px solid #f5f5f5;
+	}
+	.header .btn {
+	  width: 40%;
+	  color: #000;
+	  font-size: 14px;
+	  line-height: 2;
+	  margin: 0 auto;
+	  display: flex;
+	}
+	.header .btn view {
+	  width: 50%;
+	  text-align: center
+	}
+	.header .btn .active {
+	  color: #ef3664
+	}
+	.container {  
+	  position: relative;  
+	  width: 100%;   
+	  color: #939393;
+	  padding: 0;
+	}
+	.container .item .pic-wrapper {
+	  width: 100vw;
+	  height: 100vw;
+	}
+	.container .item .pic-wrapper swiper {
+	  height: 100%;
+	}
+	.container .item .pic-wrapper swiper image {
+	  width: 100%;
+	  height: 100%;
+	  display: block;
+	}
+	.container .item .video-wrapper {
+	  width: 100%;
+	  height: 370px;
+	  background: #000;
+	}
+	.container .item .video-wrapper video {
+	  width: 100%;
+	  height: 320px;
+	}
+	.container .item .video-host-wrapper {
+	  width: 100%;
+	  height: 100%;
+	  position: relative
+	}
+	.container .item .video-host-wrapper .icon {
+	  width: 20vw;
+	  height: 20vw;
+	  position: absolute;
+	  top: 40vw;
+	  left: 40vw;
+	}
+	.container .item .desc {
+	  background: #fff;
+	}
+	.container .item .title {
+	  padding: 1vw 3vw;
+	  color: #000;
+	}
+	.container .item .foot {
+	  margin-top: 5px;
+	  padding-bottom: 5px;
+	  display: flex
+	}
+	.container .item .price {
+	  width: 50%;
+	  font-size: 24px;
+	  font-weight: bold;
+	  color: #ef3664;
+	}
+	.container .item .update {
+	  width: 50%;
+	  padding-right: 15px;
+	  text-align: right
+	}
+
+	.container .pick {
+	  width: 100%;
+	  margin-top: 10px;
+	  background: #fff;
+	}
+	.container .pick .selected {
+	  line-height: 2;
+	  padding-left: 10px;
+	  margin-bottom: 5px;
+	  border-bottom: 1px solid #f5f5f5;
+	}
+	.container .pick .select {
+	  display: flex;
+	  padding-bottom: 10px;
+	}
+	.container .pick .select .name {
+	  width: 18vw;
+	  text-align: center;
+	}
+	.container .pick .select .attrs {
+	  width: 82vw
+	}
+	.container .pick .select .attr {
+	  display: inline-block;
+	  color: #000;
+	  margin: 5px;
+	  padding: 0 10px;
+	  font-size: 16px;
+	  border-radius: 5px;
+	  background: #f5f5f5;
+	}
+	.container .pick .select .attr.active {
+	  color: #fff;
+	  background: #ef3664;
+	  border-bottom: 0;
+	}
+	.container .pick .select .attr.disabled {
+		color: #666666;
+		background: #f5f5f5;
+	}
+	.container .pick .stepper {
+		width: 100px;
+		height: 26px;
+	  border-radius: 3px;
+		border: 1px solid #ccc;
+	}
+	.container .pick .stepper text {
+		width: 32px;
+	  float: left;
+		line-height: 26px;
+		text-align: center;
+	}
+	.container .pick .stepper input {
+		width: 34px;
+		height: 26px;
+		float: left;
+		margin: 0 auto;
+		text-align: center;
+		font-size: 12px;
+		border-left: 1px solid #ccc;
+		border-right: 1px solid #ccc;
+	}
+	.container .pick .stepper .normal {
+		color: black;
+	}
+	.container .pick .stepper .disabled {
+		color: #ccc;
+	}
+
+	.container .detail {
+	  width: 100%;
+	  height: auto;
+	  margin-top: 10px;
+	  background: #fff;
+	}
+	.container .swiper-tab {
+	    width: 60%;
+	    display: flex;
+	    flex-flow: row;
+	    margin: 0 auto;
+	    line-height: 88rpx;
+	    text-align: center;
+	    justify-content: space-between;
+	}
+	.container .swiper-tab-item {
+	    width: 50%; 
+	    color:#434343;
+	}
+	.container .active {
+	    color:#F65959;
+	    border-bottom: 4rpx solid #F65959;
+	}
+	.container .swiper-content {
+	  border-top: 2rpx solid #ccc;
+	}
+	.container .swiper-content-item {
+	  min-height: 100vw;
+	}
+	.container .swiper-content-item.hidden {
+	  display: none
+	}
+	.container .swiper-content-item .tab {
+	  width: 80vw;
+	  margin: 10vw;
+	  border-top: 1px solid #ccc;
+	  border-left: 1px solid #ccc;
+	  border-right: 1px solid #ccc;
+	}
+	.container .swiper-content-item .tr {
+	  display: flex;
+	  line-height: 2;
+	  text-align: center;
+	  border-bottom: 1px solid #ccc;
+	}
+	.container .swiper-content-item .name {
+	  width: 30vw;
+	  border-right: 1px solid #ccc;
+	}
+	.container .swiper-content-item .attr {
+	  width: 50vw;
+	}
+
+	.footer {
+	  font-size: 18px;
+	  display: flex;
+	  text-align: center;
+	  background: #fff;
+	}
+	.footer .share {
+	  width: 14vw;
+	  margin: 0 1vw;
+	  font-size: 12px;
+	}
+	.footer .collect {
+	  width: 14vw;
+	  margin: 0 1vw;
+	  font-size: 12px;
+	}
+	.footer .cart {
+	  width: 14vw;
+	  margin: 0 1vw;
+	  font-size: 12px;
+	}
+	.footer .icon {
+	  width: 20px;
+	  height: 20px;
+	  display: block;
+	  margin: 1vw auto;
+	}
+	.footer .add-cart {
+	  width: 26vw;
+	  color: #ef3664;
+	  line-height: 2.5;
+	  background: #fff2f5;
+	  border: 1px solid #fec7d5;
+	}
+	.footer .buy {
+	  width: 26vw;
+	  color: #fff;
+	  line-height: 2.5;
+	  background: #fb658a;
+	  border: 1px solid #fb658a;
+	}
+	.footer .disabled {
+	  width: 52vw;
+	  color: #666666;
+	  line-height: 2.5;
+	  background: #c6c6c6;
+	  border: 1px solid #c9c9c9;
+	}
+	.toast_font {
+		font-size: 18px;
+	}
+</style>
+

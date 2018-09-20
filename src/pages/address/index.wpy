@@ -1,0 +1,351 @@
+<template>
+	<view class="item" wx:for="{{address}}">
+		<view class="address" animation='{{item.animation}}' @touchstart="ts({{index}})" @touchmove="tm({{index}})" @touchend="te({{index}})">
+			<image src="/images/{{item.default?'checked':'check'}}.png"></image>
+			<view class="info" wx:if="{{currentPage==='pages/checkOut/index'}}" @tap.stop="bindSelectAddress({{index}})">
+				<text>{{item.name}} {{m1.formatter(item.phone, 3, 3)}}</text>
+				<text class="a">{{item.full_address}}</text>
+			</view>
+			<view class="info" wx:else>
+				<text>{{item.name}} {{m1.formatter(item.phone, 3, 3)}}</text>
+				<text class="a">{{item.full_address}}</text>
+			</view>
+			<view class="btn" @tap="bindEdit({{index}})">编辑</view>
+		</view>
+		<view class="swipe-actions actions-right">
+			<view class="swipe-btn upd" @tap.stop="bindUpdateAddress({{item.id}})"><text>更新</text></view>
+		    <view class="swipe-btn del" @tap.stop="bindDeleteAddress({{item.id}})"><text>删除</text></view>
+		</view>
+	</view>
+	<!-- <view class="tips">tips:若没设置默认收货地址，下单时默认使用最近使用地址</view> -->
+	<view style="padding-top:45vh;text-align: center;" wx:if="{{!address.length}}">
+		您还没有添加收货地址喔~
+	</view>
+	<view class="footer" wx:if="{{address.length<=10}}" @tap="bindUpdateAddress(null)">新增地址</view>
+	<view class="footer" wx:else="" style="color:#aaa">保存地址以达到上限，请删除后再添加</view>
+	<!-- 验证码输入模态框 -->
+	<modal class="modal" hidden="{{addressModal}}" bindcancel="bidnCanceModal" bindconfirm="bindConfirmModal">
+		<view style="margin-top:-3vh;">
+			<view class="group-form">
+				<text>收货人：</text>
+				<input class="weui-input" placeholder="请输入收货人姓名" value="{{modelForm.name}}" @input="bindNameInput"/>
+			</view>
+			<view wx:if="{{ modelForm.errors.name }}" style="color: #ef3664">{{ modelForm.errors.name[0] }}</view>
+			<view class="group-form">
+				<text>联系电话：</text>
+				<input class="weui-input" placeholder="请输入收货人联系电话" value="{{modelForm.phone}}" @input="bindPhoneInput"/>
+			</view>
+			<view wx:if="{{ modelForm.errors.phone }}" style="color: #ef3664">{{ modelForm.errors.phone[0] }}</view>
+			<view class="group-form">
+				<text>收货地区：</text>
+				<view @tap="openAddressPicker">
+					{{modelForm.province ? modelForm.province.name : '省 - '}}
+					{{modelForm.city ? modelForm.city.name : '市 - ' }}
+					{{modelForm.area ? modelForm.area.name : '区' }}
+				</view>
+			</view>
+			<view wx:if="{{ modelForm.errors.province }}" style="color: #ef3664">{{ modelForm.errors.province[0] }}</view>
+			<view class="group-form">
+				<text>详细地址：</text>
+				<input class="weui-input" placeholder="请输入收货人详细地址" value="{{modelForm.address}}" @input="bindAddressInput"/>
+			</view>
+			<view wx:if="{{ modelForm.errors.address }}" style="color: #ef3664">{{ modelForm.errors.address[0] }}</view>
+			<view class="group-form">
+				<text>设为默认：</text>
+				<switch checked="{{modelForm.default}}" @change="bindChange"/>
+			</view>
+		</view>
+	</modal>
+	<areaPicker @areaArray.user="areaPickerArray"></areaPicker>
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+	import mywxs from '../../wxs/mywxs.wxs'
+	import AreaPicker from "../../components/wepy-area-picker"
+
+	export default class Address extends wepy.page {
+		config = {
+			navigationBarTitleText: '收货地址'
+	  	}
+	  	data = {
+	  		address: null,
+	  		startX: null,
+	  	    moveX: null,
+	  	    modelForm: null,
+	  	    addressModal: true,
+	  	    currentPage: null
+	  	}
+	  	components = {
+	  	    areaPicker: AreaPicker
+	  	}
+	  	wxs = {
+  	     	m1: mywxs
+  		}
+  		methods = {
+  			ts (i, e) {
+		      	if (e.touches.length === 1) {
+		        	this.startX = e.touches[0].clientX
+		        	this.moveX = e.touches[0].clientX
+		      	}
+		    },
+		    tm (i, e) {
+		    	var animation = wepy.createAnimation({duration:400});
+		    	if (e.touches.length === 1) {
+		    		// 手指起始点位置与移动期间的差值
+		    		var distanceX = this.moveX - e.touches[0].clientX
+		    		this.moveX = e.touches[0].clientX
+		    		if (distanceX > 0) {
+		    			for (var a in this.address) {
+		    				if (a != i) {
+		    					animation.left(0).step();
+		    					this.address[a].animation = animation.export()
+		    				}
+		    			}
+		    			animation.left('-225rpx').step();
+		    		} else {
+		    			animation.left('0rpx').step()
+		    		}
+		    		this.address[i].animation = animation.export()
+		    	}
+		    },
+		    te (i, e) {
+		    	// if (e.changedTouches.length === 1) {
+		    	// 	if (this.swipeData[i] <= -112) {
+		    	// 		this.swipeData[i] = true
+		    	// 	} else {
+		    	// 		this.swipeData[i] = 0
+		    	// 	}
+		    	// }
+		    },
+		    bindSelectAddress (i, e) {
+		    	var pages = getCurrentPages()
+		    	var prevPage = pages[pages.length - 2]
+		    	prevPage.changeAddress({ address: this.address[i] })
+		    	wepy.navigateBack({
+	    	　　　　delta: 1
+	    	　　});
+		    },
+		    bindEdit (i, e) {
+		    	var animation = wepy.createAnimation({duration:400});
+		    	for (var j in this.address) {
+		    		if (j != i) {
+		    			animation.left(0).step();
+		    			this.address[j].animation = animation.export()
+		    		}
+		    	}
+		    	animation.left('-225rpx').step();
+		    	this.address[i].animation = animation.export()
+		    },
+		    bindUpdateAddress (i, e) {
+		    	this.modelForm = {}
+	    		for (var a in this.address) {
+	    			if (this.address[a].id===i) {
+	    				this.modelForm = JSON.parse(JSON.stringify(this.address[a]))
+	    			}
+	    		}
+		    	this.$apply()
+		    	this.addressModal = false
+		    },
+		    async bindDeleteAddress (i, e) {
+    	    	let tip = await wepy.showModal({
+    	    	  	title: '提示',
+    	    	  	content: '确定要删除这个地址吗？'
+    	    	});
+    	    	if (tip.confirm) {
+    	    		wepy.showLoading({title: '加载中'})
+    		        try {
+		        		let response = await api.authRequest({
+		        			url: 'address/'+i,
+		        			method: 'DELETE',
+		        		})
+    		        	if (response.statusCode === 200) {
+        	  	    		this.address = {}
+        	  	    		this.$apply()
+        	                this.onLoad()
+    		        	}
+    		        } catch (err) {
+    		        	console.log(err)
+    		        	wepy.showModal({
+    		        	  title: '提示',
+    		        	  content: '服务器错误，请联系管理员'
+    		        	})
+    		        }
+    	        	wepy.hideLoading()
+    	        }
+		    },
+		    bidnCanceModal (e) {
+		    	this.addressModal = true
+		    },
+		    bindNameInput (e) {
+		    	this.modelForm.name = e.detail.value
+		    },
+		    bindPhoneInput (e) {
+		    	this.modelForm.phone = e.detail.value
+		    },
+		    bindAddressInput (e) {
+		    	this.modelForm.address = e.detail.value
+		    },
+		    bindChange (e) {
+		    	this.modelForm.default = e.detail.value ? 1:0
+		    },
+		    async bindConfirmModal (e) {
+		    	this.modelForm.errors = {}
+		    	if (!this.modelForm.name) {
+		    		this.modelForm.errors.name = ['收货人不能为空']
+		    		return false
+		    	}
+	    		if (!(/^1[34578]\d{9}$/.test(this.modelForm.phone))) {
+	    			this.modelForm.errors.phone = ['手机号格式不正确']
+	    			return false
+	    		}
+	    		if (!this.modelForm.province) {
+	    			this.modelForm.errors.province = ['收货地区不能为空']
+	    			return false
+	    		}
+	    		if (!this.modelForm.address) {
+		    		this.modelForm.errors.address = ['收货详细地址不能为空']
+		    		return false
+		    	}
+
+		    	let params = {
+		    		name: this.modelForm.name,
+		    		phone: this.modelForm.phone,
+		    		province: this.modelForm.province,
+		    		city: this.modelForm.city,
+		    		area: this.modelForm.area,
+		    		default: this.modelForm.default,
+		    		address: this.modelForm.address
+		    	}
+		    	let url = this.modelForm.id ? 'address/'+this.modelForm.id : 'address'
+		    	let response = await api.authRequest({
+		    		url: url,
+		    		method: 'POST',
+		            data: params
+		    	})
+		    	if (response.statusCode === 200) {
+		    		let userResponse = await api.authRequest('user?include=address')
+		    		if (userResponse.statusCode === 200) {
+		    		  wepy.setStorageSync('user_info', userResponse.data.data)
+		    		}
+		    		this.address = {}
+		    		this.addressModal = true
+		    		this.modelForm = {}
+		    		this.$apply()
+	                this.onLoad()
+	            }
+		    },
+		    areaPickerArray(province, city, area) {
+	        	this.modelForm.province = {name: province.name, code: province.code};
+	        	this.modelForm.city = {name: city.name, code: city.code};
+	        	this.modelForm.area = {name: area.name, code: area.code};
+	        	this.$apply();
+	        }
+  		}
+		async onLoad() {
+			let response = await api.authRequest('address')
+		    if (response.statusCode === 201) {
+		    	var pages = getCurrentPages();
+				this.currentPage = pages[pages.length-2].route
+		    	this.address = response.data.data
+                this.$apply()
+            }
+		}
+	}
+</script>
+<style>
+	page {
+		background: #f5f5f5
+	}
+	.item {
+		border-top: 1px solid #f5f5f5;
+		overflow: hidden;
+		position: relative;
+	}
+	.item .address {
+		width: 100%;
+	    height: 100%;
+		display: flex;
+		padding: 1vh 0;
+		background:#fff;
+		align-items: center;
+		position: relative;
+	    top: 0;
+	    left: 0;
+	    z-index: 5;
+	}
+	.item .btn {
+		width: 12vw;
+		height: 10vw;
+		color: #666666;
+		font-size: 16px;
+		line-height: 10vw;
+		text-align: center;
+	}
+	.item .address image {
+		width: 5vw;
+		height: 5vw;
+		margin: 2vw;
+	}
+	.item .address .info {
+		width: 79vw;
+		display: flex;
+		flex-direction:column;
+	}
+	.item .address .info .a {
+		color: #888888;
+		font-size: 16px;
+	}
+	.item .swipe-actions {
+		width: 225rpx;
+		height: 100%;
+		display: flex;
+		position: absolute;
+		top: 0;
+		right: 0;
+		z-index: 1;
+	}
+	.item .swipe-btn.upd {
+		width: 50%;
+		display: flex;
+		color: #ef3664;
+		background: #fff2f5;
+		align-items: center;
+	}
+	.item .swipe-btn.del {
+		width: 50%;
+		display: flex;
+		color: #fff;
+		background: red;
+		align-items: center;
+	}
+	.item .swipe-btn text {
+		width: 100%;
+		text-align: center;
+	}
+	.tips {
+		border-top: 1px dashed #f5f5f5;
+		background: #fff;
+		font-size: 14px;
+		line-height: 2;
+		text-align: center;
+		color: #666666
+	}
+	.footer {
+		width: 100vw;
+		color: #ef3664;
+		line-height: 3;
+		padding-bottom: 4vh;
+		border-top: 1px dashed #f5f5f5;
+		text-align: center;
+		background: #fff;
+		position: fixed;
+		bottom: 0;
+	}
+	.modal .group-form {
+		height: 5vh;
+		display: flex;
+		align-items: center;
+		border-bottom: 1px solid #a5a5a5
+	}
+</style>

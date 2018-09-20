@@ -1,0 +1,795 @@
+<template>
+	<block wx:if="{{carts.length}}">
+	<view class="header">
+		<view class="selected">共{{carts.length}}个商品：已选{{total.checked}}个，共{{total.amount}}件</view>
+		<view class="group" @tap="bindEdit">{{isEdit?'完成':'编辑'}}</view>
+	</view>
+
+	<view style="padding: 7vh 0 10vh">
+	    <view class="item" wx:for="{{carts}}">
+	    	<view class="ckd"><image data-itemid="{{item.item_id}}" data-skuid="{{item.sku_id}}" @tap="{{item.lackStatusText.imposed&&!isEdit?'':'bindCheck'}}" src="/images/{{item.check?'checked':'check'}}.png"></image></view>
+	    	<view class="pic"><image src="{{item.itemInfo.index_img_url}}"></image></view>
+	    	<view class="desc">
+	    		<navigator class="title" hover-class="none" url="../item/index?id={{item.item_id}}">{{item.itemInfo.title}}</navigator>
+	    		<view class="attr">
+	    			<view class="select" @tap="bindUpdate({{index}})">{{item.color}} - {{item.size}} <image src="/images/down.png"></image></view>
+	    		</view>
+	    		<view class="attr" wx:if="{{item.lackStatusText.imposed}}">
+	    			<text style="color:red">{{item.lackStatusText.title}}</text>
+	    		</view>
+	    		<view class="attr" wx:if="{{!item.lackStatusText.imposed}}">
+	    			<view class="price" wx:for="{{item.itemInfo.skumap}}" wx:for-item="sku" wx:if="{{sku.id == item.sku_id}}">￥{{m1.priceFilter(sku.discount_price-0+item.profit)}}</view>
+	    			<view class="amount">
+	    				<view class="stepper">
+	    					<text class="{{item.amount==1?'':'normal'}}" @tap="bindMinus({{index}})">-</text>
+	    					<input type="number" maxlength="1" value="{{item.amount}}" @change="bindManual({{index}})"/>
+	    					<text class="{{item.amount<9?'normal':''}}" @tap="bindPlus({{index}})">+</text>
+	    				</view>
+	    			</view>
+	    		</view>
+	    	</view>
+	    </view>
+	</view>
+
+	<view class="footer">
+		<view class="ckd" @tap="bindCheckAll"><image src="/images/{{total.checkAll?'checked':'check'}}.png"></image>全选</view>
+		<view class="group" style="display: {{isEdit?'none':''}}">
+			<view class="detailed">
+				<view>总金额： <text style="font-weight:bold;color: #ef3664">￥{{total.price}}</text></view>
+				<view style="font-size: 14px">(不含运费)</view>
+			</view>
+			<view class="buy {{total.checked<=0?'disabled':''}}" @tap="{{total.checked<=0?'':'bindCheckOut'}}">去结算</view>
+		</view>
+		<view class="group" style="display: {{isEdit?'':'none'}}">
+			<view style="width: 55vw"><view class="collect {{total.checked<=0?'disabled':''}}" @tap="{{total.checked<=0?'':'bindCollect'}}">移入收藏夹</view></view>
+			<view style="width: 30vw"><view class="cart {{total.checked<=0?'disabled':''}}" @tap="{{total.checked<=0?'':'bindMove'}}">移除购物车</view></view>
+		</view>
+	</view>
+
+	<view class="mark" style="display: {{update?'':'none'}}" catchtouchmove="true">
+		<view class="update" animation='{{update.animation}}'>
+			<view class="head">
+				<image class="pic" src="{{update.itemInfo.index_img_url}}"></image>
+				<view class="selected">
+					<view style="color:#ef3664" wx:for="{{update.itemInfo.skumap}}" wx:for-item="sku" wx:if="{{sku.id == update.sku_id}}">
+						￥{{m1.priceFilter(sku.discount_price-0+update.profit)}}
+						<image src="/images/colse.png" class="close" @tap="bindUpdateClose"></image>
+					</view>
+					<view wx:if="{{update.color&&update.size}}">已选 {{update.color}} - {{update.size}}</view>
+					<view wx:else>请选择</view>
+				</view>
+			</view>
+			<view class="select">
+				<view class="name">颜色</view>
+				<view class="attrs">
+					<block wx:for="{{update.itemInfo.color}}">
+					    <view class="attr {{item==update.color?'active':''}}" wx:if="{{update.itemInfo.color_able[index]}}" @tap="bindSelectColor({{index}})">{{item}}</view>
+					    <view class="attr disabled" wx:if="{{!update.itemInfo.color_able[index]}}">{{item}}</view>
+				    </block>
+				</view>
+			</view>
+			<view class="select">
+				<view class="name">尺寸</view>
+				<view class="attrs">
+					<block wx:for="{{update.itemInfo.size}}">
+				    	<view class="attr {{item==update.size?'active':''}}" wx:if="{{update.itemInfo.size_able[index]}}" @tap="bindSelectSize({{index}})">{{item}}</view>
+				    	<view class="attr disabled" wx:if="{{!update.itemInfo.size_able[index]}}">{{item}}</view>
+			    	</block>
+				</view>
+			</view>
+			<view class="foot {{isUpdate?'':'disabled'}}" wx:if="{{update.color&&update.size}}" @tap="{{isUpdate?'bindSaveUpdate':''}}">{{update.lackStatusText.imposed?update.lackStatusText.title:'确 认'}}</view>
+			<view class="foot disabled" wx:else>请选择规格</view>
+		</view>
+	</view>
+	</block>
+
+	<view class="container" wx:if="{{!carts.length}}">购物车是空的喔～</view>
+</template>
+
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+	import mywxs from '../../wxs/mywxs.wxs'
+
+	export default class Cart extends wepy.page {
+		config = {
+			enablePullDownRefresh: true,
+			navigationBarTitleText: '购物车'
+	  	}
+	  	data = {
+	  		carts: null,
+	  		isEdit: false,
+	  		update: null,
+	  		isUpdate: false,
+	  		updateIndex: null,
+	  		total: {
+	  			checked: null,
+	  			amount: null,
+	  			price: null,
+	  			checkAll: false
+	  		}
+	  	}
+	  	wxs = {
+  	     	m1: mywxs
+  		}
+	  	methods = {
+	  		bindManual (i, e) {
+				let a = e.detail.value <= 0 ? 1 : e.detail.value
+	  			this.updateAmount(i, a)
+	  		},
+	  		bindMinus (i, e) {
+				let a = this.carts[i].amount > 1 ? Number(this.carts[i].amount) - 1 : 1
+				this.updateAmount(i, a)
+	  		},
+	  		bindPlus (i, e) {
+				let a = this.carts[i].amount < 9 ? Number(this.carts[i].amount) + 1 : this.carts[i].amount
+				this.updateAmount(i, a)
+	  		},
+	  		bindEdit (e) {
+	  			var carts = this.carts;
+	  			this.isEdit = this.isEdit ? false : true
+	  			for (var c in carts) {
+	  				if (!this.isEdit) {
+	  					carts[c].check = carts[c].lackStatusText.imposed ? false : carts[c].check
+	  				}
+	  			}
+	  			this.getTotal()
+	  		},
+	  		async bindCollect (e) {
+	  			let isLogin = await this.$parent.checkLogin()
+	  			if (!isLogin) {
+  					let tips = await wepy.showModal({
+						title: '提示',
+						confirmText: '去登录',
+						content: '还没登录，请前往登录'
+					})
+					if (tips.confirm) {
+						wx.navigateTo({
+							url: '../login/index'
+						})
+					}
+					return false
+	  			}
+	  			
+	  			var res = await wepy.showModal({
+			  		    title: '已选择' + this.total.checked+'个商品',
+			  		    content: '确定要移入收藏夹吗？'
+			  		})
+	  			if (res.confirm) {
+	  				var setCarts = [];
+	  				var newCarts = [];
+		  			var carts = this.carts;
+	  				wepy.showLoading({title: '加载中'})
+	  				for (var c in carts) {
+	  					if (carts[c].check) {
+			  		        let params = {
+			  		        	item_id: carts[c].itemInfo.id,
+	  							title: carts[c].itemInfo.title,
+	  							image: carts[c].itemInfo.index_img_url,
+			  		        }
+			  		        await api.authRequest('carts/'+carts[c].id, false)
+		  		        	await api.authRequest({
+		  		        		url: 'collects',
+		  		        		method: 'POST',
+		  		                data: params
+		  		        	}, false)
+
+	  					} else {
+	  						newCarts.push(carts[c])
+	  						setCarts.push({
+				        			item_id: carts[c].item_id,
+				        			sku_id: carts[c].sku_id,
+				        			size: carts[c].size,
+				        			color: carts[c].color,
+				        			amount: carts[c].amount
+				        		})
+	  					}
+	  		        }
+	  		        wepy.hideLoading()
+  		        	this.carts = newCarts
+	  		        this.$apply()
+	  		        wepy.setStorageSync('carts', setCarts)
+	  			}
+	  		},
+	  		async bindMove (e) {
+	  			var res = await wepy.showModal({
+			  		    title: '已选择' + this.total.checked+'个商品',
+			  		    content: '确定要移除购物车吗？'
+			  		})
+	  			if (res.confirm) {
+	  				var setCarts = [];
+	  				var newCarts = [];
+	  				var carts = this.carts;
+	  				let isLogin = await this.$parent.checkLogin()
+	  				if (isLogin) {
+	  					for (var c in carts) {
+	  						if (carts[c].check) {
+	  							await api.authRequest('carts/'+carts[c].id)
+	  						} else {
+	  							newCarts.push(carts[c])
+	  						}
+				        }
+	  				} else {
+						for (var c in carts) {
+							if (!carts[c].check) {
+				        		newCarts.push(carts[c])
+				        		setCarts.push({
+				        			item_id: carts[c].item_id,
+				        			sku_id: carts[c].sku_id,
+				        			size: carts[c].size,
+				        			color: carts[c].color,
+				        			amount: carts[c].amount
+				        		})
+							}
+				        }
+	  				}
+	  				wepy.setStorageSync('carts', setCarts)
+				    this.carts = newCarts
+				    this.$apply()
+	  			}
+	  		},
+	  		bindUpdate (i, e) {
+	  			var animation = wepy.createAnimation({duration:500});
+  		        this.update = JSON.parse(JSON.stringify(this.carts[i]))
+  		        // this.update = carts[c]
+  		        this.updateIndex = i
+  		        animation.bottom('0vh').step();
+				this.update.animation = animation.export()
+	  		},
+
+	  		bindUpdateClose (e) {
+	  		    this.update = null
+	  		    this.isUpdate = false
+	  		    this.updateIndex = null
+	  		},
+	  		bindSelectColor (i, e) {
+	  			if (this.update.color === this.update.itemInfo.color[i]) {
+	  				var size = this.update.itemInfo.size
+	  				this.update.color = null
+		  			this.update.color_id = null
+	  				this.update.itemInfo.size_able = Array(size.length).fill(true)
+	  			} else {
+	  				this.update.color = this.update.itemInfo.color[i]
+		  			this.update.color_id = this.update.itemInfo.color_id[i]
+		  			var color_id = this.update.itemInfo.color_id[i]
+		  			var size_id = this.update.itemInfo.size_id
+		  			var skumap = this.update.itemInfo.skumap
+	  				var size_able = []
+	  				for (var c in size_id) {
+	  					var size_color = ';'+size_id[c]+';'+color_id+';';
+	  					var color_size = ';'+color_id+';'+size_id[c]+';';
+	  					var able = false;
+	  					for (var i in skumap) {
+	  						if (skumap[i].skuid === size_color || skumap[i].skuid === color_size) {
+	  							able = true;
+	  						}
+	  					}
+	  					size_able.push(able)
+	  				}
+	  				this.update.itemInfo.size_able = size_able
+	  			}
+	  			this.skumapChage()
+	  		},
+	  		bindSelectSize (i, e) {
+	  			if (this.update.size === this.update.itemInfo.size[i]) {
+	  				var color = this.update.itemInfo.color
+	  				this.update.size = null
+		  			this.update.size_id = null
+	  				this.update.itemInfo.color_able = Array(color.length).fill(true)
+	  			} else {
+	  				this.update.size = this.update.itemInfo.size[i]
+		  			this.update.size_id = this.update.itemInfo.size_id[i]
+		  			var size_id = this.update.itemInfo.size_id[i]
+		  			var color_id = this.update.itemInfo.color_id
+		  			var skumap = this.update.itemInfo.skumap
+	  				var color_able = []
+	  				for (var c in color_id) {
+	  					var color_size = ';'+color_id[c]+';'+size_id+';';
+	  					var size_color = ';'+size_id+';'+color_id[c]+';';
+	  					var able = false;
+	  					for (var i in skumap) {
+	  						if (skumap[i].skuid === size_color || skumap[i].skuid === color_size) {
+	  							able = true;
+	  						}
+	  					}
+	  					color_able.push(able)
+	  				}
+	  				this.update.itemInfo.color_able = color_able
+	  			}
+	  			this.skumapChage()
+	  		},
+	  		async bindSaveUpdate (e) {
+	  			if (this.update.id) {
+					let response = await api.authRequest({
+						url: 'carts/'+this.update.id,
+						method: 'POST',
+					    data: {
+					    	sku_id: this.update.sku_id,
+					    	size: this.update.size,
+					    	color: this.update.color
+					    }
+					})
+					if (response.statusCode === 200) {
+						this.carts[this.updateIndex] = this.update
+					}
+	  			} else {
+	  				let carts = wepy.getStorageSync('carts')
+	  				this.carts[this.updateIndex] = this.update
+	  				carts[this.updateIndex].sku_id = this.update.sku_id
+	  				carts[this.updateIndex].size = this.update.size
+	  				carts[this.updateIndex].color = this.update.color
+	  				wepy.setStorageSync('carts', carts)
+	  			}
+	  		    this.update = null
+	  		    this.isUpdate = false
+	  		    this.updateIndex = null
+	  		    this.getTotal()
+	  		    this.$apply()
+		  		wepy.showToast({
+		  		    title: '更新成功',
+		  		    icon: 'success',
+		  		    mask: true,
+		  		    duration: 2000
+		  		})
+	  		},
+	  		bindCheck (e) {
+	  		  var itemid = e.target.dataset.itemid;
+	  		  var skuid = e.target.dataset.skuid;
+	  		  var carts = this.carts;
+	  		  for (var c in carts) {
+	  		    if (itemid == carts[c].item_id && skuid == carts[c].sku_id) {
+	  		      carts[c].check = carts[c].check ? false : true
+	  		      this.carts = carts
+	  		      this.getTotal()
+	  		      return
+	  		    }
+	  		  }
+	  		},
+	  		bindCheckAll (e) {
+	  		  var carts = this.carts;
+	  		  for (var c in carts) {
+	  		    carts[c].check = this.total.checkAll ? false : true
+	  		    if (!this.isEdit) {
+	  		      carts[c].check = carts[c].lackStatusText.imposed ? false : carts[c].check
+	  		    }
+	  		  }
+	  		  this.getTotal()
+	  		},
+	  		async bindCheckOut (e) {
+	  			let isLogin = await this.$parent.checkLogin()
+	  			if (!isLogin) {
+	  				let tips = await wepy.showModal({
+	  					title: '提示',
+	  					confirmText: '去登录',
+	  					content: '还没登录，请前往登录'
+	  				})
+	  				if (tips.confirm) {
+	  					wx.navigateTo({
+	  						url: '../login/index'
+	  					})
+	  				}
+	  				return false
+	  			}
+	  			var checkOut = [];
+	  			var carts = this.carts;
+	  			for (var c in carts) {
+  					if (carts[c].check) {
+  						checkOut.push({
+  							id: carts[c].id,
+  							item_id: carts[c].item_id,
+  							sku_id: carts[c].sku_id,
+  							profit: carts[c].profit,
+  							amount: carts[c].amount,
+  							size: carts[c].size,
+  							color: carts[c].color
+  						});
+  					}
+  				}
+	  			wepy.setStorageSync('check_out', checkOut);
+	  			wx.navigateTo({
+	  				url: '../checkOut/index'
+	  			})
+	  		}
+	  	}
+	  	skumapChage () {
+  			var isUpdate = true;
+  			var carts = this.carts;
+  			var update = this.update;
+  			var skumap = update.itemInfo.skumap;
+  			var color_size = ';' + update.color_id + ';' + update.size_id + ';';
+  			var size_color = ';' + update.size_id + ';' + update.color_id + ';';
+  			for (var s in skumap) {
+  				if (skumap[s].skuid == color_size || skumap[s].skuid == size_color) {
+  					update.lackStatusText = api.lackStatusText(1, skumap[s].lack_reason, "", "", skumap[s].is_lack)
+  					update.sku_id = skumap[s].id
+  				}
+  			}
+  			for (var c in carts) {
+  			    isUpdate = carts[c].item_id == update.item_id && carts[c].sku_id == update.sku_id ? false : isUpdate
+  			}
+  			isUpdate = update.lackStatusText.imposed ? false : isUpdate
+  		    this.isUpdate = isUpdate
+  		    this.update = update
+	  	}
+	  	async updateAmount(i, a) {
+	  		if (this.carts[i].id) {
+  				let response = await api.authRequest({
+  					url: 'carts/'+this.carts[i].id,
+  					method: 'POST',
+  				    data: {
+  						amount: a
+  					}
+  				})
+  				if (response.statusCode === 200) {
+  					this.carts[i].amount = a
+  				}
+  			} else {
+  				let carts = wepy.getStorageSync('carts')
+  				this.carts[i].amount = a
+  				carts[i].amount = a
+  				wepy.setStorageSync('carts', carts)
+  			}
+  			this.getTotal()
+  			this.$apply()
+	  	}
+	  	getTotal (e) {
+	  		var carts = this.carts;
+	  		var checked = 0;
+	  		var disabled = 0;
+	  		var amount = 0;
+	  		var price = 0;
+	  		for (var c in carts) {
+	  			if (carts[c].check) {
+	  				checked++;
+	  				amount += Number(carts[c].amount);
+	  				for (var s in carts[c].itemInfo.skumap) {
+	  					price += carts[c].itemInfo.skumap[s].id == carts[c].sku_id ? carts[c].amount * (carts[c].itemInfo.skumap[s].discount_price - 0 + carts[c].profit) : 0
+	  				}
+	  			} else {
+	  				carts[c].lackStatusText.imposed ? disabled++ : disabled
+	  			}
+	  		}
+	  	  	this.carts = carts
+	  	    this.total = {
+		  	    	checked: checked,
+		  	    	amount: amount,
+		  	    	price: price.toFixed(2),
+		  	    	checkAll: (checked + disabled) == carts.length ? true : false
+		  	    }
+	  	}
+		async onShow() {
+			
+			wepy.showLoading({title: '加载中'})
+			this.carts = []
+			let isLogin = await this.$parent.checkLogin()
+  			if (isLogin) {
+        		let response = await api.authRequest('carts', false)
+	        	if (response.statusCode === 201) {
+	        		var data = response.data.data;
+	  	    		for (var i in data) {
+	  	    			let itemInfo = await api.getItemInfo(data[i].item_id)
+	  	    			var lackStatusText = {title: '商品已失效', imposed: !0}
+	  	    			for (var s in itemInfo.skumap) {
+	  	    				if (itemInfo.skumap[s].id == data[i].sku_id) {
+	  	    					lackStatusText = api.lackStatusText(1, itemInfo.skumap[s].lack_reason, "", "", itemInfo.skumap[s].is_lack)
+	  	    				}
+	  	    			}
+	  	    			this.carts.push({
+	  	    				id: data[i].id,
+	  	    				item_id: data[i].item_id,
+	  	    				sku_id: data[i].sku_id,
+	  	    				size: data[i].size,
+	  	    				color: data[i].color,
+	  	    				size_id: itemInfo.size_id[itemInfo.size.indexOf(data[i].size)],
+	  	    				color_id: itemInfo.color_id[itemInfo.color.indexOf(data[i].color)],
+	  	    				profit: this.$parent.globalData.profit[data[i].item_id] ? this.$parent.globalData.profit[data[i].item_id] : this.$parent.globalData.profit['default'],
+	  	    				amount: data[i].amount,
+	  	    				check: !lackStatusText.imposed?true:false,
+	  	    				lackStatusText: lackStatusText,
+	  	    				itemInfo: itemInfo
+	  	    			})
+	  	    		}
+	        	}
+  			} else {
+  				var data = wepy.getStorageSync('carts');
+  				if (data.length) {
+  					for (var i in data) {
+  						let itemInfo = await api.getItemInfo(data[i].item_id)
+  						var lackStatusText = {title: '商品已失效', imposed: !0}
+  						for (var s in itemInfo.skumap) {
+  							if (itemInfo.skumap[s].id == data[i].sku_id) {
+  								lackStatusText = api.lackStatusText(1, itemInfo.skumap[s].lack_reason, "", "", itemInfo.skumap[s].is_lack)
+  							}
+  						}
+  						this.carts.push({
+  							item_id: data[i].item_id,
+  							sku_id: data[i].sku_id,
+  							size: data[i].size,
+	  	    				color: data[i].color,
+	  	    				size_id: itemInfo.size_id[itemInfo.size.indexOf(data[i].size)],
+	  	    				color_id: itemInfo.color_id[itemInfo.color.indexOf(data[i].color)],
+  							profit: this.$parent.globalData.profit[data[i].item_id] ? this.$parent.globalData.profit[data[i].item_id] : this.$parent.globalData.profit['default'],
+  							amount: data[i].amount,
+  							check: !lackStatusText.imposed?true:false,
+  							lackStatusText: lackStatusText,
+  							itemInfo: itemInfo
+  						})
+  					}
+  				}
+  			}
+  			this.getTotal()
+  			this.$apply()
+			wepy.hideLoading()
+		}
+	}
+</script>
+
+<style>
+	.header {
+	  height: 6vh;
+	  display: flex;
+	  line-height: 6vh;
+	  background: #fff;
+	  border-top: 1px solid #f5f5f5;
+	  border-bottom: 1px solid #f5f5f5;
+	  position: fixed;
+	  z-index: 9;
+	  top: 0;
+	}
+	.header .selected {
+	  width: 74vw;
+	  margin: 0 3vw;
+	}
+	.header .group {
+	  width: 20vw;
+	  color: #ef3664;
+	  text-align: center;
+	}
+
+	.item {
+	  display: flex;
+	  border-bottom: 1px solid #f5f5f5;
+	}
+	.item .ckd {
+	  width: 10vw;
+	}
+	.item .ckd image {
+	  width: 6vw;
+	  height: 6vw;
+	  display: block;
+	  margin: 10vw auto;
+	}
+	.item .pic {
+	  width: 30vw;
+	}
+	.item .pic image {
+	  width: 28vw;
+	  height: 28vw;
+	  margin-top: 1vw;
+	  margin-right: 2vw;
+	}
+	.item .desc {
+	  width: 60vw;
+	}
+	.item .desc .title {
+	  min-height: 6vh;
+	  padding: 1vw;
+	  font-size: 16px;
+	  color: #000;
+	  text-overflow: -o-ellipsis-lastline;
+	  overflow: hidden;
+	  text-overflow: ellipsis;
+	  display: -webkit-box;
+	  -webkit-line-clamp: 2;
+	  -webkit-box-orient: vertical;
+	}
+	.item .desc .attr {
+	  width: 100%;
+	  display: flex;
+	  margin-top: 0.5vh;
+	}
+	.item .desc .attr .select {
+	  width: 95%;
+	  color: #888888;
+	  font-size: 16px;
+	  line-height: 1.5;
+	  padding-left:1vw;
+	  border: 1px solid #f5f5f5
+	}
+	.item .desc .attr .select image {
+	  width: 4vw;
+	  height: 4vw;
+	  margin: 1vw;
+	  float: right;
+	}
+	.item .desc .attr .price {
+	  width: 50%;
+	  color: #ef3664;
+	}
+	.item .desc .attr .amount {
+	  width: 50%;
+	}
+	.item .desc .stepper {
+		width: 100px;
+		height: 4vh;
+		border: 1px solid #ccc;
+		border-radius: 3px;
+	}
+	.item .desc .stepper text {
+		width: 32px;
+		line-height: 4vh;
+		text-align: center;
+		float: left;
+	}
+	.container .pick .stepper .normal {
+		color: black;
+	}
+	.item .desc .stepper input {
+		width: 34px;
+		height: 4vh;
+		float: left;
+		margin: 0 auto;
+		text-align: center;
+		font-size: 12px;
+		border-left: 1px solid #ccc;
+		border-right: 1px solid #ccc;
+	}
+	.item .desc .stepper .normal {
+		color: black;
+	}
+	.container .pick .stepper .disabled {
+		color: #ccc;
+	}
+
+	.footer {
+	  height: 8vh;
+	  display: flex;
+	  background: #fff;
+	  border-top: 1px solid #f5f5f5;
+	  position: fixed;
+	  z-index: 9;
+	  bottom: 0;
+	}
+	.footer .ckd {
+	  width: 15vw;
+	  font-size: 14px;
+	  text-align: center;
+	}
+	.footer .ckd image {
+	  width: 6vw;
+	  height: 6vw;
+	  display: block;
+	  margin: 1vw auto 0;
+	}
+	.footer .group {
+	  width: 85vw;
+	  display: flex;
+	}
+	.footer .group .detailed {
+	  width: 53vw;
+	  margin-right: 2vw;
+	  text-align: right;
+	}
+	.footer .group .buy {
+	  width: 30vw;
+	  color: #fff;
+	  font-size: 24px;
+	  line-height: 2.2;
+	  text-align: center;
+	  background: #ef3664
+	}
+	.footer .group .buy.disabled {
+	  color: #666666;
+	  background: #c6c6c6
+	}
+	.footer .group .collect.disabled {
+	  color: #666666;
+	  border: 1px solid #c6c6c6
+	}
+	.footer .group .cart.disabled {
+	  color: #666666;
+	  background: #c6c6c6
+	}
+	.footer .group .collect {
+	  float: right;
+	  color: #ef3664;
+	  margin-top:10px;
+	  margin-right:10px;
+	  padding: 2px 5px;
+	  border-radius: 5px;
+	  display: inline-block;
+	  border: 1px solid #ef3664;
+	}
+	.footer .group .cart {
+	  color: #fff;
+	  margin-top:10px;
+	  padding: 2px 5px;
+	  border-radius: 5px;
+	  display: inline-block;
+	  background: #ef3664;
+	}
+
+	.mark {
+	  width: 100vw;
+	  height: 100vh;
+	  background: rgba(0,0,0,.4);
+	  border-top: 1px solid #f5f5f5;
+	  position: fixed;
+	  z-index:99;
+	  bottom: 0;
+	  flex: 1;
+	}
+	.mark .update {
+	  width: 100vw;
+	  /*min-height: 38vh;*/
+	  padding-bottom: 10vh;
+	  background: #fff;
+	  position: fixed;
+	  bottom: -46vh;
+	  flex: 1;
+	}
+	.mark .head {
+	  width: 90vw;
+	  display: flex;
+	  margin: 0 auto 2vh;
+	}
+	.mark .head .pic {
+	  width: 26vw;
+	  height: 26vw;
+	  margin-top: -13vw;
+	  border: 1vw solid #fff;
+	}
+	.mark .head .selected {
+	  width: 62vw;
+	  display:flex;
+	  padding-top: 1vw;
+	  flex-direction: column
+	}
+	.mark .head .close {
+	  width: 5vw;
+	  height: 5vw;
+	  float: right;
+	}
+	.mark .select {
+	  display: flex;
+	  padding-bottom: 10px;
+	}
+	.mark .select .name {
+	  width: 18vw;
+	  text-align: center;
+	}
+	.mark .select .attrs {
+	  width: 82vw
+	}
+	.mark .select .attr {
+	  display: inline-block;
+	  color: #000;
+	  margin: 5px;
+	  padding: 0 10px;
+	  font-size: 16px;
+	  border-radius: 5px;
+	  background: #f5f5f5;
+	}
+	.mark .select .attr.active {
+	  color: #fff;
+	  background: #ef3664;
+	}
+	.mark .select .attr.disabled {
+	  color: #666666;
+	  background: #f5f5f5;
+	}
+	.mark .foot {
+	  width: 100vw;
+	  color: #fff;
+	  font-size: 22px;
+	  line-height: 2;
+	  text-align: center;
+	  background: #ef3664;
+	  position: absolute;
+	  bottom: 0;
+	}
+	.mark .foot.disabled {
+	  color: #666666;
+	  background: #c6c6c6
+	}
+</style>

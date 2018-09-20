@@ -1,0 +1,19 @@
+<style>
+	
+</style>
+<template>
+	
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+
+	export default class Guide extends wepy.page {
+		config = {
+			navigationBarTitleText: '购物指南'
+	  	}
+		onLoad() {
+			
+		}
+	}
+</script>

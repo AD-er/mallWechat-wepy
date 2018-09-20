@@ -1,0 +1,534 @@
+<template>
+	<view class="panel">
+		<view class="swiper-tab">
+		  	<view class="swiper-tab-item {{panelTab==0?'active':''}}" @tap="bindPanelTab(0)">登 录</view>
+		  	<view class="swiper-tab-item {{panelTab==1?'active':''}}" @tap="bindPanelTab(1)">注 册</view>
+		</view>
+		<view class="swiper-content">
+			<view class="swiper-content-item {{panelTab==0?'':'hidden'}}">
+				<view class="group-form"> 
+					<text>手机号码 OR 邮箱</text>
+					<view class="group-input">
+						<input type="text" placeholder="请输入已注册的手机号码或邮箱" @input="bindLoginUsernameInput"></input>
+						<image src="/images/colse.png" class="claer" bindtap=""></image>
+					</view>
+					<view wx:if="{{ loginForm.errors.username }}" class="error-message">{{loginForm.errors.username[0]}}</view>
+				</view>
+				<view class="group-form">
+					<text>登录密码</text>
+					<view class="group-input">
+					  	<input type="password" placeholder="请输入账户的登录密码" @input="bindLoginPasswordInput"></input>
+					  	<image src="/images/colse.png" class="claer" bindtap=""></image>
+					</view>
+					<view wx:if="{{ loginForm.errors.password }}" class="error-message">{{loginForm.errors.password[0]}}</view>
+				</view>
+				<view class="group-form">
+					<text>验证码</text>
+					<view class="group-input">
+						<input type="text" placeholder="请输入输入验证码" style="width: 55vw;" @input="bindLoginCodeInput"></input>
+						<image src="/images/colse.png" class="claer" bindtap=""></image>
+						<image src="{{loginForm.captcha.imageContent}}" @tap="bindLoginCaptchaCode" style="width: 25vw;height: 8vw;display: block;margin-right: 1vw;float: right"></image>
+					</view>
+					<view wx:if="{{ loginForm.errors.captcha_code }}" class="error-message">{{loginForm.errors.captcha_code[0]}}</view>
+				</view>
+				<view class="group-form" style="text-align: right"><navigator hover-class="none" style="width: 20vw;font-size: 14px;line-height: 2;display: inline;color: #ef3664" url="../forGot/index">忘记密码？</navigator></view>
+				<view class="btn" @tap="bindLogin">确定登录</view>
+			</view>
+			<view class="swiper-content-item {{panelTab==1?'':'hidden'}}">
+				<view class="group-form"> 
+					<text>手机号码</text>
+					<view class="group-input">
+						<input type="text" placeholder="请输入未注册过的手机号码" @input="bindRegisterPhoneInput"></input>
+						<image src="/images/colse.png" class="claer" bindtap=""></image>
+					</view>
+					<view wx:if="{{ registerForm.errors.phone }}" class="error-message">{{registerForm.errors.phone[0]}}</view>
+				</view>
+				<view class="group-form">
+					<text>登录密码</text>
+					<view class="group-input">
+						<input type="password" placeholder="请输入登录密码" @input="bindRegisterPasswordInput"></input>
+						<image src="/images/colse.png" class="claer" bindtap=""></image>
+					</view>
+					<view wx:if="{{ registerForm.errors.password }}" class="error-message">{{registerForm.errors.password[0]}}</view>
+				</view>
+				<view class="group-form">
+					<text>确认密码</text>
+					<view class="group-input">
+						<input type="password" placeholder="请再次输入登录密码" @input="bindRegisterConfirmPasswordInput"></input>
+						<image src="/images/colse.png" class="claer" bindtap=""></image>
+					</view>
+					<view wx:if="{{ registerForm.errors.password_confirmation }}" class="error-message">{{registerForm.errors.password_confirmation[0]}}</view>
+				</view>
+				<view class="group-form">
+					<text>短信验证码</text>
+					<view class="group-input">
+						<input type="text" placeholder="请输入短信验证码" style="width: 50vw;" @input="bindRegisterSmsCodeInput"></input>
+						<image src="/images/colse.png" class="claer" bindtap=""></image>
+						<text class="get-code" @tap="bindCaptchaCode">获取验证码</text>
+					</view>
+					<view wx:if="{{ registerForm.errors.verification_code }}" class="error-message">{{registerForm.errors.verification_code[0]}}</view>
+				</view>
+				<view class="btn {{registerForm.verificationCode?'':'disabled'}}" style="margin: 4vh auto 2vh;" @tap="{{registerForm.verificationCode?'bindRegister':''}}">确定注册</view>
+			</view>
+		</view>
+	</view>
+	<toast />
+	<!-- 验证码输入模态框 -->
+	<modal class="modal" hidden="{{ captchaModalHidden }}" no-cancel bindconfirm="sendVerificationCode">
+		<view style="display: flex; height: 4vh" >
+			<view>
+				<input class="weui-input" placeholder="图片验证码" @input="bindCaptchaCodeInput"/>
+			</view>
+			<view>
+				<image @tap="bindCaptchaCode" src="{{ registerForm.captcha.imageContent }}" style="width: 100px; height: 100%"></image>
+			</view>
+		</view>
+		<view wx:if="{{ registerForm.errors.captchaValue }}" style="color: #ef3664">{{ registerForm.errors.captchaValue[0] }}</view>
+	</modal>
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+	import Toast from 'wepy-com-toast'
+
+	export default class Login extends wepy.page {
+		config = {
+			navigationBarTitleText: '登录注册'
+	  	}
+	  	components = {
+	  	  toast: Toast
+	  	}
+	  	data = {
+	  		captchaModalHidden: true,
+	  		panelTab: 0,
+	  		loginForm: {
+	  			username: null,
+	  			password: null,
+	  			captcha: null,
+	  			code: null,
+	  			errors: {}
+	  		},
+	  		registerForm: {
+	  			phone: null,
+	  			password: null,
+	  			password_confirmation: null,
+	  			verification_code: null,
+	  			captcha: null,
+	  			captchaValue: null,
+	  			verificationCode: null,
+	  			errors: {}
+	  		}
+		}
+		methods = {
+			bindPanelTab (i, e) {
+				this.panelTab = i
+			},
+			bindLoginUsernameInput (e) {
+				this.loginForm.username = e.detail.value
+			},
+			bindLoginPasswordInput (e) {
+				this.loginForm.password = e.detail.value
+			},
+			bindLoginCodeInput (e) {
+				this.loginForm.captcha_code = e.detail.value
+			},
+			bindRegisterPhoneInput (e) {
+				this.registerForm.phone = e.detail.value
+			},
+			bindRegisterPasswordInput (e) {
+				this.registerForm.password = e.detail.value
+			},
+			bindRegisterConfirmPasswordInput (e) {
+				this.registerForm.password_confirmation = e.detail.value
+			},
+			bindCaptchaCodeInput (e) {
+				this.registerForm.captchaValue = e.detail.value
+			},
+			bindRegisterSmsCodeInput (e) {
+				this.registerForm.verification_code = e.detail.value
+			},
+			// 登录方法
+			async bindLogin (e) {
+				this.loginForm.errors = {}
+				// 判断手机号码或邮箱是否为空
+			    if (!this.loginForm.username) {
+			    	this.loginForm.errors.username = ['请输入手机号码或邮箱']
+			        return false
+			    }
+			    // 判断登录密码是否为空
+			    if (!this.loginForm.password) {
+			    	this.loginForm.errors.password = ['请输入登录密码']
+			        return false
+			    }
+			    // 判断验证码是否为空
+			    if (!this.loginForm.captcha_code) {
+			    	this.loginForm.errors.captcha_code = ['请输入验证码']
+			        return false
+			    }
+
+		        // 获取用户名和密码
+                let params = {
+                  username: this.loginForm.username,
+                  password: this.loginForm.password,
+                  captcha_code: this.loginForm.captcha_code,
+                  captcha_key: this.loginForm.captcha.key
+                }
+
+                try {
+                  	let authResponse = await api.login(params)
+
+                  	// 请求结果为 401 说明用户名和密码错误，显示错误提示
+                  	if (authResponse.statusCode === 401) {
+						this.$invoke('toast', 'show', {
+		  				  	title: authResponse.data.message,
+		  				  	titleClassName: '.toast_font',
+		  				  	img: 'https://raw.githubusercontent.com/kiinlam/wetoast/master/images/star.png'
+		  				})
+		  				this.getLoginCaptchaCode()
+                  	}
+
+                  	// 表单错误
+		            if (authResponse.statusCode === 422) {
+		            	this.loginForm.errors = authResponse.data.errors
+		            	this.$apply()
+		            }
+
+                  	// 201 为登录正确，返回上一页
+                  	if (authResponse.statusCode === 201) {
+                  		this.$parent.syncCarts()
+	                    wepy.navigateBack()
+                  	}
+                } catch (err) {
+                  	wepy.showModal({
+                    	title: '提示',
+                    	content: '服务器错误，请联系管理员'
+                  	})
+                }
+			},
+			// 注册方法
+			async bindRegister (e) {
+				// 检查验证码是否已发送
+				if (!this.registerForm.verificationCode) {
+				    wepy.showToast({
+				      title: '请发送验证码',
+				      icon: 'none',
+				      duration: 2000
+				    })
+				    return false
+				}
+				// 检查验证码是否过期
+				if (new Date().getTime() > this.registerForm.verificationCode.expiredAt) {
+				    wepy.showToast({
+				      title: '验证码已过期',
+				      icon: 'none',
+				      duration: 2000
+				    })
+				    this.resetRegister()
+				    return false
+				}
+			    // 判断手机号是否正确
+			    if (!(/^1[34578]\d{9}$/.test(this.registerForm.phone))) {
+			    	this.registerForm.errors.phone = ['请输入正确的手机号']
+			        return false
+			    }
+			    // 判断登录密码是否为空
+			    if (!this.registerForm.password) {
+			    	this.registerForm.errors.password = ['请输入登录密码']
+			        return false
+			    }
+			    // 判断确认密码是否为空
+			    if (!this.registerForm.password_confirmation) {
+			    	this.registerForm.errors.password_confirmation = ['请输入确认密码']
+			        return false
+			    }
+			    // 判断两次密码是否一致
+			    if (this.registerForm.password!=this.registerForm.password_confirmation) {
+			    	this.registerForm.errors.password_confirmation = ['两次密码输入不一致']
+			        return false
+			    }
+			    // 判断短信验证码是否为空
+			    if (!this.registerForm.verification_code) {
+			    	this.registerForm.errors.verification_code = ['请输入短信验证码']
+			        return false
+			    }
+			    try {
+		            let formData = {
+		            	phone: this.registerForm.phone,
+		            	password: this.registerForm.password,
+		            	password_confirmation: this.registerForm.password_confirmation,
+		            	verification_code: this.registerForm.verification_code,
+		            	verification_key: this.registerForm.verificationCode.key
+		            }
+
+		            // let loginData = await wepy.login()
+		            // 参数中增加code，用于获取 openid 绑定当前用户
+		            // formData.code = loginData.code
+
+		            let registerResponse = await api.request({
+		            	url: 'users',
+		            	method: 'POST',
+		            	data: formData
+		            })
+
+		            // 验证码错误
+		            if (registerResponse.statusCode === 401) {
+		            	this.registerForm.errors.verification_code = ['验证码错误']
+		            	this.$apply()
+		            }
+
+		            // 表单错误
+		            if (registerResponse.statusCode === 422) {
+		            	this.registerForm.errors = registerResponse.data.errors
+		            	this.$apply()
+		            }
+
+		            // 注册成功，记录token
+		            if (registerResponse.statusCode === 201) {
+		            	wepy.setStorageSync('access_token', registerResponse.data.meta.access_token)
+		            	wepy.setStorageSync('access_token_expired_at', new Date().getTime() + registerResponse.data.meta.expires_in * 1000)
+		            	// 设置用户信息
+		            	wepy.setStorageSync('userInfo', registerResponse.data)
+
+		            	wepy.showToast({
+		            	  title: '注册成功',
+		            	  icon: 'success'
+		            	})
+
+		            	// 跳转到我的页面
+		            	setTimeout(function() {
+		            	  wepy.switchTab({
+		            	    url: '/pages/home/index'
+		            	  })
+		            	}, 2000)
+		            }
+		        } catch (err) {
+		            console.log(err)
+		            wepy.showModal({
+		              title: '提示',
+		              content: '服务器错误，请联系管理员'
+		            })
+		        }
+			},
+			async bindCaptchaCode (e) {
+				this.getCaptchaCode()
+			},
+			async bindLoginCaptchaCode (e) {
+				this.getLoginCaptchaCode()
+			},
+			// 发送短信验证码
+		    async sendVerificationCode () {
+		        if (!this.registerForm.captchaValue) {
+		          this.registerForm.errors.captchaValue = ['请输入图片验证码']
+		          return false
+		        }
+
+		        // 检查验证码是否过期，重置流程
+		        if (new Date().getTime() > this.registerForm.captcha.expiredAt) {
+		        	wepy.showToast({
+		        		title: '验证码已过期',
+		        		icon: 'none',
+		        		duration: 2000
+		        	})
+		        	this.resetRegister()
+		          return false
+		        }
+
+		        try {
+		          let codeResponse = await api.request({
+		            url: 'verificationCodes',
+		            method: 'POST',
+		            data: {
+		              captcha_key: this.registerForm.captcha.key,
+		              captcha_code: this.registerForm.captchaValue
+		            }
+		          })
+
+		          // 验证码错误提示
+		          if (codeResponse.statusCode === 401) {
+		            this.registerForm.errors.captchaValue = ['图片验证码错误']
+		            this.$apply()
+		            await this.getCaptchaCode()
+		            return false
+		          }
+
+		          // 记录 key 和 过期时间
+		          if (codeResponse.statusCode === 201) {
+		            this.registerForm.verificationCode = {
+		              key: codeResponse.data.key,
+		              expiredAt: Date.parse(codeResponse.data.expired_at)
+		            }
+
+		            // 关闭modal
+		            this.captchaModalHidden = true
+		            // 手机输入框 disabled
+		            this.phoneDisabled = true
+		            // 清空报错信息
+		            this.errors = {}
+		            this.$apply()
+
+		            // wepy.showToast({
+		            //   title: '发送成功',
+		            //   icon: 'success',
+		            //   duration: 2000
+		            // })
+		          }
+		        } catch (err) {
+		          console.log(err)
+		          wepy.showModal({
+		            title: '提示',
+		            content: '服务器错误，请联系管理员'
+		          })
+		        }
+		    }
+		}
+		resetRegister() {
+		    this.captchaModalHidden = true
+		    this.phoneDisabled = false
+		    this.registerForm.captcha = {}
+		    this.registerForm.verificationCode = {}
+		    this.registerForm.errors = {}
+		}
+		// 获取图片验证码
+	    async getCaptchaCode() {
+	    	this.registerForm.errors.phone = null
+		    // 判断手机号是否正确
+		    if (!(/^1[34578]\d{9}$/.test(this.registerForm.phone))) {
+		    	this.registerForm.errors.phone = ['请输入正确的手机号']
+		        return
+		    }
+
+		    try {
+		        // 调用发送验证码接口，参数为手机号
+		        let captchaResponse = await api.request({
+		        	url: 'captchas',
+		        	method: 'POST',
+		        	data: {
+		        		phone: this.registerForm.phone
+		        	}
+		        })
+
+		        // 表单错误
+		        if (captchaResponse.statusCode === 422) {
+		        	this.registerForm.errors = captchaResponse.data.errors
+		        	this.$apply()
+		        }
+
+		        // 记录 key 和过期时间，打开 modal
+		        if (captchaResponse.statusCode === 201) {
+		        	this.registerForm.captcha = {
+		        	  key: captchaResponse.data.captcha_key,
+		        	  imageContent: captchaResponse.data.captcha_image_content,
+		        	  expiredAt: Date.parse(captchaResponse.data.expired_at)
+		        	}
+
+		        	// 关闭modal
+		        	this.captchaModalHidden = false
+		        	this.$apply()
+		        }
+		    } catch (err) {
+		        console.log(err)
+		        wepy.showModal({
+		          title: '提示',
+		          content: '服务器错误，请联系管理员'
+		        })
+		    }
+	    }
+	    async getLoginCaptchaCode () {
+	    	// 调用发送验证码接口，参数为手机号
+	        let captchaResponse = await api.request('captchas')
+	        if (captchaResponse.statusCode === 201) {
+	        	this.loginForm.captcha = {
+	        	  key: captchaResponse.data.captcha_key,
+	        	  imageContent: captchaResponse.data.captcha_image_content,
+	        	  expiredAt: Date.parse(captchaResponse.data.expired_at)
+	        	}
+	        }
+	        this.$apply()
+	    }
+	    async onShow() {
+	    	this.getLoginCaptchaCode()
+	    }
+	}
+</script>
+<style>
+	.panel {
+		width: 90vw;
+		display: table;
+		padding: 2vw;
+		margin: 15vh auto;
+		background: #fff;
+		border-radius: 5px;
+		box-shadow: 2px 2px 15px #888888;
+	}
+	.panel .swiper-tab {
+	    width: 60%;
+	    display: flex;
+	    flex-flow: row;
+	    font-weight: bold;
+	    margin: 0 auto 1vh;
+	    line-height: 70rpx;
+	    text-align: center;
+	    justify-content: space-between;
+	}
+	.panel .swiper-tab-item {
+	    width: 50%;
+	    color:#434343;
+	}
+	.panel .swiper-tab-item.active {
+	    color:#F65959;
+	    border-bottom: 4rpx solid #F65959;
+	}
+	.panel .swiper-content-item.hidden {
+	    display: none;
+	}
+	.panel .group-form {
+		margin-top: 1vh;
+	}
+	.panel .group-form .error-message {
+		font-size: 16px;
+		color: #ef3664;
+	}
+	.panel .group-form .group-input {
+		width: 100%;
+		display: table;
+		padding: 1vw 0;
+		border-radius: 3px;
+		background: #f5f5f5;
+	}
+	.panel .group-form .group-input input {
+		width: 81vw;
+		height: 7vw;
+		float: left;
+		margin: 0.5vw 0;
+		padding-left: 1vw;
+	}
+	.panel .group-form .group-input .claer {
+		width: 3vw;
+		height: 3vw;
+		float: left;
+		margin: 2vw;
+		display: none; 
+	}
+	.panel .group-form .group-input .get-code {
+		width: 30vw;
+		line-height: 8vw;
+		float:right;
+		color: #ef3664;
+		display: block;
+		margin: 0 0.5vw;
+		text-align: center;
+		border: 1px solid #ef3664;
+	}
+	.panel .btn {
+		color: #fff;
+		margin: 2vh auto;
+		line-height: 7vh;
+		text-align: center;
+		border-radius: 3px;
+		background: #ef3664
+	}
+	.panel .btn.disabled {
+		color: #fff;
+		background: #666666
+	}
+</style>

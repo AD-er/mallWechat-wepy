@@ -1,0 +1,224 @@
+<style lang="less">
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+</style>
+
+<script>
+import wepy from 'wepy'
+import 'wepy-async-function'
+import api from '@/utils/api'
+
+import { setStore } from 'wepy-redux'
+import configStore from './store'
+
+const store = configStore()
+setStore(store)
+
+export default class extends wepy.app {
+  config = {
+    pages: [
+      'pages/index/index',
+      "pages/cart/index",
+      "pages/category/index",
+      "pages/order/index",
+      "pages/order/show",
+      "pages/address/index",
+      "pages/collect/index",
+      "pages/checkOut/index",
+      "pages/forGot/index",
+      "pages/login/index",
+      "pages/list/index",
+      "pages/item/index",
+      "pages/about/index",
+      "pages/account/index",
+      "pages/guide/index",
+      "pages/search/index",
+      "pages/coupon/index",
+      "pages/home/index"
+    ],
+    window: {
+      backgroundTextStyle: 'light',
+      navigationBarBackgroundColor: '#fff',
+      navigationBarTitleText: 'Keluof',
+      navigationBarTextStyle: 'black'
+    },
+    "tabBar": {
+      "color": "#a9b7b7",
+      "selectedColor": "#ef3664",
+      "borderStyle": "black",
+      "list": [
+        {
+          "pagePath": "pages/index/index",
+          "iconPath": "/images/index.png",
+          "selectedIconPath": "/images/index_selected.png",
+          "text": "商城首页"  
+        },
+        {
+          "pagePath": "pages/category/index",
+          "iconPath": "/images/category.png",
+          "selectedIconPath": "/images/category_selected.png",
+          "text": "全部分类"  
+        },
+        {
+          "pagePath": "pages/cart/index",
+          "iconPath": "/images/cart.png",
+          "selectedIconPath": "/images/cart_selected.png",
+          "text": "购物车"  
+        }
+        ,
+        {
+          "pagePath": "pages/home/index",
+          "iconPath": "/images/home.png",
+          "selectedIconPath": "/images/home_selected.png",
+          "text": "会员中心"
+        }
+      ]  
+    }
+  }
+
+  globalData = {
+    banner: ['//temp.im/50x30', '//temp.im/50x30', '//temp.im/50x30'],
+    market: null,
+    profit: null,
+    courier: null,
+    carriage: null,
+  }
+
+  constructor () {
+    super()
+    this.use('requestfix')
+    this.use('promisify')
+  }
+
+  // 获取当前登录用户信息
+  async getCurrentUser () {
+    if (!this.checkLogin()) {
+      return null
+    }
+
+    // 从缓存中获取用户信息
+    let user = wepy.getStorageSync('user_info')
+
+    try {
+      // 登录了但是缓存中没有，请求接口获取
+      if (!user) {
+        let userResponse = await api.authRequest('user?include=address')
+        // console.log(userResponse)
+        if (userResponse.statusCode === 200) {
+          user = userResponse.data.data
+          wepy.setStorageSync('user_info', user)
+        }
+      }
+    } catch (err) {
+      console.log(err)
+      wepy.showModal({
+        title: '提示',
+        content: '服务器错误，请联系管理员'
+      })
+    }
+
+    return user
+  }
+
+  // 用户是否已经登录
+  checkLogin () {
+    return (wepy.getStorageSync('access_token') !== '')
+  }
+
+  // 用户登录后同步购物车
+  async syncCarts () {
+    if (!this.checkLogin()) {
+      return false
+    }
+
+    // 从缓存中购物车数据
+    let carts = wepy.getStorageSync('carts')
+    if (!carts.length) {
+      return false
+    }
+
+    try {
+      for (var i in carts) {
+        let params = {
+          item_id: carts[i].item_id,
+          sku_id: carts[i].sku_id,
+          size: carts[i].size,
+          color: carts[i].color,
+          amount: carts[i].amount
+        }
+        await api.authRequest({
+          url: 'carts',
+          method: 'POST',
+          data: params
+        }, false)
+      }
+    } catch (err) {
+      console.log(err)
+      wepy.showModal({
+        title: '提示',
+        content: '服务器错误，请联系管理员'
+      })
+    }
+
+  }
+
+  onLaunch() {
+    // 小程序启动，商城配置参数
+    this.shopConfig()
+    // 每隔 60 秒，商城配置参数
+    setInterval(() => {
+      this.shopConfig()
+    }, 60000)
+  }
+
+  // 商城配置参数
+  async shopConfig() {
+    // 请求商城配置参数接口
+    if (this.checkLogin()) {
+      var response = await api.authRequest({url: 'config', method: 'post'}, false)
+    } else {
+      var response = await api.request('config', false)
+    }
+    
+    //  请求成功，赋值全局变量
+    if (response.statusCode === 201) {
+      this.globalData.market = response.data.market,
+      this.globalData.profit = response.data.profit,
+      this.globalData.courier = response.data.courier,
+      this.globalData.carriage = response.data.carriage
+    }
+  }
+
+  // sleep (s) {
+  //   return new Promise((resolve, reject) => {
+  //     setTimeout(() => {
+  //       resolve('promise resolved')
+  //     }, s * 1000)
+  //   })
+  // }
+
+  // async testAsync () {
+  //   const data = await this.sleep(3)
+  //   console.log(data)
+  // }
+
+  // getUserInfo(cb) {
+  //   const that = this
+  //   if (this.globalData.userInfo) {
+  //     return this.globalData.userInfo
+  //   }
+  //   wepy.getUserInfo({
+  //     success (res) {
+  //       that.globalData.userInfo = res.userInfo
+  //       cb && cb(res.userInfo)
+  //     }
+  //   })
+  // }
+}
+</script>

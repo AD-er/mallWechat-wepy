@@ -1,0 +1,225 @@
+<template>
+	<view class="header">
+		<navigator hover-class="none" url="../address/index">
+			<view>{{address.name}} {{address.phone}}</view>
+			<view class="address">{{address.full_address}}</view>
+		</navigator>
+		<image src="/images/right.png"></image>
+	</view>
+
+	<view class="container">
+		<view class="item" wx:for="{{checkOut}}">
+			<view class="pic"><image src="{{item.itemInfo.index_img_url}}"></image></view>
+			<view class="desc">
+				<view class="title">{{item.itemInfo.title}}</view>
+				<view class="attrs">{{item.color}} - {{item.size}}</view>
+				<view class="attrs" wx:for="{{item.itemInfo.skumap}}" wx:for-item="sku" wx:if="{{sku.id == item.sku_id}}"><text style="color: #ef3664;font-weight: bold">￥{{m1.priceFilter(sku.discount_price-0+item.profit)}}</text> x{{item.amount}}</view>
+			</view>
+		</view>
+		<view class="item">
+			<text>优惠券</text>
+			<view style="width:78vw;text-align:right;color:#a9b7b7">暂无可用<image src="/images/right.png" style="width:5vw;height:5vw;"></image></view>
+		</view>
+		<view class="item">
+			<text>备注：</text>
+			<input type="text" placeholder="选填" style="width:78vw" @input="bindRemarkInput"></input>
+		</view>
+	</view>
+
+	<view class="footer">
+		<view class="total">
+			<view class="attrs">
+				<view>商品金额</view>
+				<view style="color: #ef3664;text-align: right">￥{{total.price}}</view>
+			</view>
+			<view class="attrs">
+				<view>优惠金额</view>
+				<view style="color: #ef3664;text-align: right">-￥0.00</view>
+			</view>
+			<view class="attrs">
+				<view>配送运费</view>
+				<view style="color: #ef3664;text-align: right">+￥{{total.carriage}}</view>
+			</view>
+			<view style="margin-top: 1vh; text-align: right;line-height: 1.5;font-size: 18px;border-top: 1px solid #f5f5f5">
+				实付金额：<text style="color: #ef3664">￥{{total.total}}</text>
+			</view>
+		</view>
+		<view class="btn" @tap="bindPay">微信支付</view>
+	</view>
+</template>
+
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+	import mywxs from '../../wxs/mywxs.wxs'
+
+	export default class CkeckOut extends wepy.page {
+		config = {
+			navigationBarTitleText: '结算中心'
+	  	}
+	  	data = {
+	  		address: null,
+	  		checkOut: null,
+	  		remark: null,
+	  		total: null
+	  	}
+	  	wxs = {
+  	     	m1: mywxs
+  		}
+  		methods = {
+  			bindRemarkInput (e) {
+  				this.remark = e.detail.value
+  			},
+  			changeAddress (e) {
+  				this.address = e.address
+  				this.$apply()
+  			},
+  			async bindPay () {
+  				let params = {
+  					address_id: this.address.id,
+  					items: wepy.getStorageSync('check_out'),
+  					remark: this.remark
+  				}
+  				let response = await api.authRequest({
+		        	url: 'orders',
+		        	method: 'POST',
+		        	data: params
+		        })
+		        // console.log(response);
+		        if (response.statusCode === 200) {
+					wx.redirectTo({
+						url: '../order/index?filter=pay'
+					})
+				}
+  			}
+  		}
+		async onLoad(e) {
+			// var pages = getCurrentPages();
+			// console.log(pages)
+			let isLogin = await this.$parent.checkLogin()
+			var checkOut = wepy.getStorageSync('check_out');
+  			if (!isLogin) {
+  				wx.navigateTo({
+  					url: '../login/index'
+  				})
+  			}
+  			if (!checkOut.length) {
+  				wepy.switchTab({
+  				  url: '/pages/index/index'
+  				})
+  			}
+  			var price = 0;
+			var amount = 0;
+			var carriage = 0;
+  			
+  			for (var c in checkOut) {
+  				checkOut[c].profit = this.$parent.globalData.profit[checkOut[c].item_id] ? this.$parent.globalData.profit[checkOut[c].item_id] : this.$parent.globalData.profit['default']
+				checkOut[c].itemInfo = await api.getItemInfo(checkOut[c].item_id)
+				for (var s in checkOut[c].itemInfo.skumap) {
+					if (checkOut[c].itemInfo.skumap[s].id == checkOut[c].sku_id) {
+						amount += checkOut[c].amount;
+						price += checkOut[c].amount * (checkOut[c].itemInfo.skumap[s].discount_price - 0 + checkOut[c].profit);
+					}
+				}
+			}
+			// 从缓存中获取用户信息
+			let user = wepy.getStorageSync('user_info')
+			this.address = user.address.data
+			this.checkOut = checkOut
+			carriage = amount >= 2 ? 0:8
+			this.total = {
+				amount: amount,
+				price: price.toFixed(2),
+				carriage: carriage.toFixed(2),
+				total: (price+carriage).toFixed(2)
+			}
+			this.$apply()
+		}
+	}
+</script>
+<style>
+	page {
+	  background: #f5f5f5;
+	}
+	.header {
+	  width: 100vw;
+	  display: flex;
+	  padding: 1vh 1vw;
+	  background: #fff;
+	  align-items: center;
+	  border-top: 1px solid #f5f5f5;
+	  border-bottom: 0.5vh dashed #ef3664;
+	  position: fixed;
+	  top: 0;
+	}
+	.header navigator {
+		width: 93vw;
+	}
+	.header image {
+		width: 5vw;
+		height: 5vw;
+	}
+	.header .address {
+	  color: #888888;
+	  font-size: 16px;
+	}
+	.container {
+	  padding: 0;
+	  margin-top: 11vh;
+	  background: #fff;
+	}
+	.container .item {
+		min-width: 94vw;
+		display: flex;
+		padding: 1vh 0;
+		border-bottom: 1px solid #f5f5f5;
+	}
+	.container .item .pic {
+	  width: 26vw;
+	  height: 26vw;
+	  margin: 0 1vw;
+	}
+	.container .item .pic image {
+	  width: 100%;
+	  height: 100%;
+	  display: block;
+	}
+	.container .item .desc {
+	  width: 72vw;
+	  font-size: 18px;
+	}
+	.container .item .desc .title {
+	  text-overflow: -o-ellipsis-lastline;
+	  overflow: hidden;
+	  text-overflow: ellipsis;
+	  display: -webkit-box;
+	  -webkit-line-clamp: 2;
+	  -webkit-box-orient: vertical;
+	}
+	.container .item .desc .attrs {
+	  color: #888888;
+	  font-size: 16px;
+	  line-height: 1.5;
+	}
+
+	.footer {
+	  padding: 1vh 2vh;
+	  margin-top: 2vh;
+	  background: #fff;
+	}
+	.footer .total .attrs {
+	  display: flex;
+	  line-height: 1.5;
+	}
+	.footer .total .attrs view {
+	  width: 50%
+	}
+	.footer .btn {
+	  color: #fff;
+	  margin: 2vh 0;
+	  line-height: 2.5;
+	  border-radius: 5px;
+	  text-align: center;
+	  background: #1aad19;
+	}
+</style>

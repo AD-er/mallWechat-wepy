@@ -1,0 +1,19 @@
+<style>
+	
+</style>
+<template>
+	
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+
+	export default class Coupon extends wepy.page {
+		config = {
+			navigationBarTitleText: '我的优惠券'
+	  	}
+		onLoad() {
+			
+		}
+	}
+</script>

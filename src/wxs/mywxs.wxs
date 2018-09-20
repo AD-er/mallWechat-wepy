@@ -1,0 +1,31 @@
+module.exports = {
+	priceFilter: function (num) {
+		return num.toFixed(2);
+	},
+	prefixInteger: function (num, length) {
+		for(var len = (num + "").length; len < length; len = num.length) {
+            num = "0" + num;            
+        }
+        return num;
+    },
+    formatter: function(value, row, index) {
+        var len= value.length;
+        var xx= value.substring(index, len-row);
+        var values = value.replace(xx, "***");
+        return values;
+    },
+    textReplace: function(text) {
+        var reg = getRegExp("\<b class='q'>([^\</b>]+)\</b>", "g");
+        return text.replace(reg, function(item, index){
+          return index;
+        })
+    },
+    shipStatus: function(status) {
+        var statusMap = {
+            'pending': '待发货',
+            'delivered': '待收货',
+            'received': '已收货',
+        }
+        return statusMap[status];
+    }
+};

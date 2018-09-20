@@ -1,0 +1,180 @@
+<template>
+	<view class="detail">
+		<view class="swiper-tab">
+			<view class="swiper-tab-item {{filter=='all'?'active':''}}" @tap="bindFilter('all')">全部</view>
+			<view class="swiper-tab-item {{filter=='pay'?'active':''}}" @tap="bindFilter('pay')">待付款</view>
+			<view class="swiper-tab-item {{filter=='send'?'active':''}}" @tap="bindFilter('send')">待发货</view>
+			<view class="swiper-tab-item {{filter=='arrive'?'active':''}}" @tap="bindFilter('arrive')">待收货</view>
+			<view class="swiper-tab-item {{filter=='after'?'active':''}}" @tap="bindFilter('after')">售后</view>
+		</view>  
+		<view class="swiper-content">
+			<view style="text-align: center" wx:if="{{!orders.length}}">没有数据~</view>
+			<navigator hover-class="none" url="/pages/order/show?id={{item.id}}" wx:for="{{orders}}">
+				<view class="no">订单号：{{item.no}}</view>
+				<view class="bar">
+					<view class="bar-left">
+						<block wx:if="{{!item.closed}}">
+						<view class="status" wx:if="{{!item.paid_at}}">状态：<text style="color: red">待付款</text></view>
+						<view class="status" wx:if="{{item.paid_at&&item.refund_status==='pending'}}">状态：{{m1.shipStatus(item.ship_status)}}</view>
+						</block>
+						<view class="status" wx:if="{{item.closed}}">状态：<text style="color: red">已关闭</text></view>
+						<view class="price">总价：￥{{item.total_amount}}</view>
+					</view>
+					<view class="bar-right">
+						<block wx:if="{{!item.closed}}">
+						<view class="btn" wx:if="{{!item.paid_at}}">取消订单</view>
+						<view class="btn pay" wx:if="{{!item.paid_at}}">微信支付</view>
+						<view class="btn affirm" wx:if="{{item.ship_status=='delivered'}}"></view>
+						<view class="btn affirm" wx:if="{{item.ship_status=='delivered'}}">确认收货</view>
+						</block>
+					</view>
+				</view>
+				<view class="items">
+					<view class="item" wx:for="{{item.orderItem.data}}">
+						<view class="item-img">
+							<image src="{{item.index_img_url}}"></image>
+						</view>
+						<view class="item-desc">
+							<veiw class="title">{{item.title}}</veiw>
+							<veiw class="amount"><text style="font-size: 32rpx;color: #666">{{item.style.color}}-{{item.style.size}}</text> x{{item.amount}}</veiw>
+						</view>
+					</view>
+				</view>
+			</navigator>
+		</view>  
+	</view> 
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+	import mywxs from '../../wxs/mywxs.wxs'
+
+	export default class Order extends wepy.page {
+		config = {
+			navigationBarTitleText: '全部订单'
+	  	}
+	  	data = {
+	  	  filter: 'all',
+	  	  orders: null
+	  	}
+	  	wxs = {
+  	     	m1: mywxs
+  		}
+	  	methods = {
+	  		async bindFilter (f, e) {
+	  			this.filter = f
+	  			let response = await api.authRequest('orders?include=orderItem&stay='+f)
+			    if (response.statusCode === 201) {
+			    	// console.log(response.data.data)
+			    	this.orders = response.data.data
+	            }
+	            this.$apply()
+		  	}
+	  	}
+		async onLoad(e) {
+			this.filter = e.filter
+			let response = await api.authRequest('orders?include=orderItem&stay='+e.filter)
+		    if (response.statusCode === 201) {
+		    	// console.log(response.data.data)
+		    	this.orders = response.data.data
+            }
+            this.$apply()
+		}
+	}
+</script>
+<style>
+	page {
+		background: #f5f5f5;
+	}
+	.detail {
+		width: 100%;
+		height: auto;
+	}
+	.swiper-tab {
+	    width: 96vw;
+	    display: flex;
+	    flex-flow: row;
+	    margin: 0 auto;
+	    padding: 0 2vw;
+	    line-height: 88rpx;
+	    text-align: center;
+	    background: #fff;
+	    border-bottom: 1px solid #ccc;
+	    justify-content: space-between;
+	    position: fixed;
+	    top: 0;
+	}
+	.swiper-tab .swiper-tab-item {
+	    width: 20%; 
+	    color:#434343;
+	}
+	.swiper-tab .swiper-tab-item.active {
+	    color:#F65959;
+	    border-bottom: 4rpx solid #F65959;
+	}
+	.swiper-content {
+		margin-top: 6.4vh;
+	}
+	.swiper-content navigator {
+		background: #fff;
+		padding-bottom: 1vh;
+		margin-bottom: 2vh;
+	}
+	navigator .no {
+		line-height: 2;
+		padding: 0 2vw;
+		border-bottom: 1px solid #ccc;
+	}
+	navigator .bar {
+		width: 96vw;
+		display: flex;
+		padding: 1vh 2vw;
+		font-size: 18px;
+		border-bottom: 1px solid #ccc;
+	}
+	navigator .bar .bar-left {
+		width: 46vw;
+	}
+	navigator .bar .bar-right {
+		width: 50vw;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	navigator .bar .bar-right .btn {
+		padding: 0 2vw;
+		line-height: 1.5;
+		border-radius: 5px;
+		text-align: center;
+		border: 1px solid #ccc;
+	}
+	navigator .bar .bar-right .btn.pay {
+		color: #fff;
+		border: none;
+		background: #1aad19;
+	}
+	navigator .bar .bar-right .btn.affirm {
+		color: #fff;
+		border: none;
+		background: #ef3664;
+	}
+	navigator .item {
+		width: 96vw;
+		margin: 1vh auto 0;
+		display: flex;
+	}
+	navigator .item .item-img {
+		width: 20vw;
+		height: 20vw;
+		margin-right: 2vw;
+	}
+	navigator .item .item-img image {
+		width: 100%;
+		height: 100%;
+	}
+	navigator .item .item-desc {
+		width: 74vw;
+		display: flex;
+		flex-direction: column;
+	}
+</style>

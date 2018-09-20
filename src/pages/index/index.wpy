@@ -1,0 +1,96 @@
+<template>
+	<view class="header">
+		<view class="search">
+	    	<navigator hover-class="none" url="../search/index">
+	        	搜索您想要的商品
+	    	</navigator>
+		</view>
+	</view>
+	<view class="banner">
+	  <swiper indicator-dots indicator-color="{{indicator}}" current="{{current}}" indicator-active-color="{{activeIndicator}}" class="bn-swiper" @change="bindPicChage" duration="300">
+	      <swiper-item wx:for="{{banner}}">
+	      	<image src="{{item}}" mode='aspectFill' catchtap='preview' data-url="{{item}}"/>
+	      </swiper-item>
+	  </swiper>
+	</view>
+	<view class="container">
+		<view>
+			<navigator hover-class="none" url="../search/index">
+				<image src="//temp.im/50x30"></image>
+	        	<text>女装</text>
+	    	</navigator>
+	    	<navigator hover-class="none" url="../search/index">
+		    	<image src="//temp.im/50x30"></image>
+	        	<text>男装</text>
+	    	</navigator>
+	    	<navigator hover-class="none" url="../search/index">
+		    	<image src="//temp.im/50x30"></image>
+	        	<text>童装</text>
+	    	</navigator>
+		</view>
+		<view>
+			<navigator hover-class="none" url="../search/index">
+				<image src="//temp.im/50x30"></image>
+	        	<text>孕妇装</text>
+	    	</navigator>
+	    	<navigator hover-class="none" url="../search/index">
+		    	<image src="//temp.im/50x30"></image>
+	        	<text>内衣／睡衣</text>
+	    	</navigator>
+	    	<navigator hover-class="none" url="../search/index">
+		    	<image src="//temp.im/50x30"></image>
+	        	<text>男鞋／女鞋</text>
+	    	</navigator>
+		</view>
+	</view>
+</template>
+<script>
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+
+	export default class Index extends wepy.page {
+		config = {
+			navigationBarTitleText: '商城首页'
+	  	}
+	  	data = {
+	  		banner: [],
+	  	}
+		onShow() {
+			this.banner = this.$parent.globalData.banner
+		}
+	}
+</script>
+<style>
+	.header {
+		width: 100vw;
+		position: fixed;
+		z-index: 9
+	}
+	.header .search {
+	  width: 90vw;
+	  color: #939393;
+	  font-size: 14px;
+	  line-height: 4vh;
+	  margin: 2vh auto;
+	  text-align: center;
+	  background: rgba(234, 234, 234, 0.6);
+	  border-radius: 15px;
+	}
+	.container {
+		margin-top: 2vw;
+	}
+	.container view {
+		width: 100vw;
+		display: flex;
+	}
+	.container view navigator {
+		width: 34%;
+		text-align: center;
+	}
+	.container navigator image {
+		width: 19vw;
+		height: 12vw;
+		display: block;
+		margin: 1vw auto;
+	}
+</style>

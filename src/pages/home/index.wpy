@@ -1,0 +1,176 @@
+<template>
+	<block wx:if="{{userInfo}}">
+	<view class="header">
+		<view class="pic"><image src="/images/account.png"></image></view>
+		<view class="info">
+			<view class="account">{{m1.formatter(userInfo.name, 3, 4)}}</view>
+			<view class="number">No.{{m1.prefixInteger(userInfo.id, 6)}}</view>
+		</view>
+	</view>
+	<view class="bar" wx:if="{{userInfo}}">
+		<navigator url="../order/index?filter=pay"><image class="icon" src="/images/pay.png"></image>待付款</navigator>
+		<navigator url="../order/index?filter=send"><image class="icon" src="/images/fa.png"></image>待发货</navigator>
+		<navigator url="../order/index?filter=arrive"><image class="icon" src="/images/shou.png"></image>待收货</navigator>
+		<navigator url="../order/index?filter=after"><image class="icon" src="/images/after_sale.png"></image>售后</navigator>
+		<navigator url="../order/index?filter=all"><image class="icon" src="/images/order.png"></image>全部订单</navigator>
+	</view>
+	<view class="container">
+		<navigator url="../coupon/index">
+		  	<image class="icon" src="/images/ticket.png"></image>优惠券
+		</navigator>
+		<navigator url="../collect/index">
+		  	<image class="icon" src="/images/collected.png"></image>我的收藏
+		</navigator>
+		<navigator url="../address/index">
+		  	<image class="icon" src="/images/location.png"></image>收货地址
+		</navigator>
+		<navigator url="../account/index">
+		  	<image class="icon" src="/images/account_selected.png"></image>账户设置
+		</navigator>
+		<navigator url="../guide/index">
+		  	<image class="icon" src="/images/account_selected.png"></image>购物指南
+		</navigator>
+		<navigator url="../about/index">
+		  	<image class="icon" src="/images/account_selected.png"></image>关于商城
+		</navigator>
+	</view>
+	<view class="logout" @tap="logout">注销退出</view>
+	</block>
+	<navigator hover-class="none" class="login" url="../login/index" wx:if="{{!userInfo}}">
+		<image src="/images/account_selected.png"></image>登录/注册
+	</navigator>
+	<toast />
+</template>
+<script>
+	/* eslint-disable */
+	import wepy from 'wepy'
+	import api from '@/utils/api'
+	import Toast from 'wepy-com-toast'
+	import mywxs from '../../wxs/mywxs.wxs'
+
+	export default class Home extends wepy.page {
+		config = {
+			navigationBarTitleText: '会员中心'
+	  	}
+	  	components = {
+	  	  toast: Toast
+	  	}
+	  	data = {
+	  		userInfo: null
+		}
+	  	wxs = {
+  	     	m1: mywxs
+  		}
+		methods = {
+			// 退出登录方法
+		    async logout (e) {
+		    	let tip = await wepy.showModal({
+		    	  	title: '提示',
+		    	  	confirmText: '注销',
+		    	  	confirmColor: '#f75d83',
+		    	  	content: '确定要退出登录吗？'
+		    	});
+		    	if (tip.confirm) {
+		    		wepy.showLoading({title: '加载中'})
+			        try {
+			        	let logoutResponse = await api.logout()
+
+			        	if (logoutResponse.statusCode === 204) {
+			        	  this.userInfo = null
+			        	  this.$apply()
+			        	}
+			        } catch (err) {
+			        	wepy.showModal({
+			        	  title: '提示',
+			        	  content: '服务器错误，请联系管理员'
+			        	})
+			        }
+		        	wepy.hideLoading()
+		        }
+		    }
+		}
+		async onShow() {
+	      	// 每次打开页面，获取当前用户信息
+	      	this.userInfo = await this.$parent.getCurrentUser()
+	      	this.$apply()
+	    }
+	}
+</script>
+<style>
+	page {
+		background: #f5f5f5;
+	}
+	.header {
+		width: 100vw;
+		display: flex;
+		background: #f75d83;
+	}
+	.header .pic {
+		width: 23vw;
+	}
+	.header .pic image {
+		width: 12vw;
+		height: 12vw;
+		display: block;
+		margin:  2vh auto;
+	}
+	.header .info {
+		width: 60vw;
+		color: #a9b7b7;
+		font-size: 16px;
+		padding-top: 2vh;
+	}
+	.bar {
+		display: flex;
+		margin: 2vh auto;
+		background: #fff;
+	}
+	.bar navigator {
+		width: 20vw;
+		font-size: 14px;
+		padding: 1vw 0;
+		text-align: center;
+	}
+	.bar navigator .icon {
+		width: 8vw;
+		height: 8vw;
+		display: block;
+		margin: 1vw auto;
+	}
+
+	.container {
+		display: block;
+		background: #fff;
+	}
+	.container navigator {
+		display: flex;
+		line-height: 8vh;
+		border-bottom: 1px solid #f5f5f5;
+	}
+	.container navigator .icon {
+		width: 5vh;
+		height: 5vh;
+		margin: 1.5vh 3vw;
+	}
+	.logout {
+		width: 90vw;
+		color: #fff;
+		margin: 3vh auto;
+		line-height: 8vh;
+		text-align: center;
+		border-radius: 5px;
+		background: #f75d83;
+	}
+	.login {
+		width: 30vw;
+		height: 30vw;
+		margin: 30vh auto;
+		text-align: center;
+	}
+	.login image {
+		width: 50%;
+		height: 50%;
+		display: block;
+		margin: 25% auto 5%;
+	}
+</style>
