@@ -29,7 +29,7 @@ const origin_host = '数据源API接口'
 
 ### 截图预览
 由于项目涉及经营性信息，小程序发布需要公司资质，所以不提供在线浏览。以下简单截图，预览商城大体结构布局：
-![后台前端预览](http://ycdn.dajing.ren/mall-wechat/preview/mallWechata1.jpg)
+![后台前端预览](https://github.com/AD-er/mallWechat-wepy/blob/master/images/mallWechat1.jpg?raw=true)
 ![后台前端预览](http://ycdn.dajing.ren/mall-wechat/preview/mallWechata2.jpg)
 ![后台前端预览](http://ycdn.dajing.ren/mall-wechat/preview/mallWechata3.jpg)
 ![后台前端预览](http://ycdn.dajing.ren/mall-wechat/preview/mallWechata4.jpg)
