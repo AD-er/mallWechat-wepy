@@ -30,10 +30,10 @@ const origin_host = '数据源API接口'
 ### 截图预览
 由于项目涉及经营性信息，小程序发布需要公司资质，所以不提供在线浏览。以下简单截图，预览商城大体结构布局：
 ![后台前端预览](https://github.com/AD-er/mallWechat-wepy/blob/master/images/mallWechat1.jpg?raw=true)
-![后台前端预览](http://ycdn.dajing.ren/mall-wechat/preview/mallWechata2.jpg)
-![后台前端预览](http://ycdn.dajing.ren/mall-wechat/preview/mallWechata3.jpg)
-![后台前端预览](http://ycdn.dajing.ren/mall-wechat/preview/mallWechata4.jpg)
-![后台前端预览](http://ycdn.dajing.ren/mall-wechat/preview/mallWechata5.jpg)
+![后台前端预览](https://github.com/AD-er/mallWechat-wepy/blob/master/images/mallWechat2.jpg?raw=true)
+![后台前端预览](https://github.com/AD-er/mallWechat-wepy/blob/master/images/mallWechat3.jpg?raw=true)
+![后台前端预览](https://github.com/AD-er/mallWechat-wepy/blob/master/images/mallWechat4.jpg?raw=true)
+![后台前端预览](https://github.com/AD-er/mallWechat-wepy/blob/master/images/mallWechat5.jpg?raw=true)
 
 ### 后端API
 API接口由另一个项目[[基于Laravel + Bootstrap商城前后端Demo](https://github.com/AD-er/mallWeb-bootstrap)]提供开发，使用Laravel框架、DingoAPI扩展、RESTFul 设计风格、JWT 身份验证、Transformer数据序列化等 API 开发相关技术。更多详情介绍请查看[GitHub源码](https://github.com/AD-er/mallWeb-bootstrap)
