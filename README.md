@@ -6,7 +6,7 @@
 ### 项目安装
 1). 克隆本项目源代码到本地：
 
-     git clone git@github.com:AD-er/mallWechat-wepy.git
+     git clone https://github.com/AD-er/mallWechat-wepy.git
 
 2). 切换至项目目录
 
