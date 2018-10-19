@@ -1,7 +1,7 @@
 import wepy from 'wepy'
 
 const host = 'https://'
-const origin_host = 'https://'
+const origin_host = 'https:///apic'
 
 // 普通请求
 const request = async (options, showLoading = true) => {
