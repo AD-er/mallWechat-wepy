@@ -39,4 +39,4 @@ const origin_host = '数据源API接口'
 API接口由另一个项目[[基于Laravel + Bootstrap商城前后端Demo](https://github.com/AD-er/mallWeb-bootstrap)]提供开发，使用Laravel框架、DingoAPI扩展、RESTFul 设计风格、JWT 身份验证、Transformer数据序列化等 API 开发相关技术。更多详情介绍请查看[GitHub源码](https://github.com/AD-er/mallWeb-bootstrap)
 
 ### 最后
-本项目[作者](https://github.com/AD-er)本人利用业余时间，断断续续写的。结合已掌握和新知识，参考部份开源项目。部份功能尚未完善，做得不好，当做参考。欢迎指正~
+本项目[作者](https://github.com/AD-er)本人利用业余时间，断断续续设计编码。结合已掌握和新知识，参考部份开源项目。部份功能尚未完善，做得不好，当做参考。欢迎指正~
